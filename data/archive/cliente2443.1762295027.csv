@@ -1,0 +1,8 @@
+accion,cliente,columna1,tkncliori,columna2,aliasori,tipoori,ordenante,columna3,tknclides,aliasdes,tipodes,beneficiario,concepto,importe,columna4,fecha_ejecucion
+1,1876244323,col01,2798a063-c37f-4146-828d-3c1980bee6ba,col02,MXA9JPMISE,DEB,Juan Perez,col03,052ad815-ebaf-45fd-8559-cac237e92f93,21NQ9HTZJ1,DEB,Ana Gomez,Pago nomina 1,1.00,col04,2025-08-23
+2,18762443,col01,2b52377a-0ffe-481b-ab4d-b7e54d9cfd7a,col02,B5GCO1J1SG,DEB,Juan Perez,col03,0e5fcbef-8ad9-41a7-b948-b1faeee06016,JVWGPJR8E2,DEB,Luis Martinez,Pago nomina 2,2.00,col04,2025-08-23
+3,18762443,col01,bc6b7f6c-9af0-4c13-9e8e-cbf53b4d28c2,col02,7BSTB9VAWJ,DEB,Juan Perez,col03,0f63e45c-77ae-4f01-ab3b-776af365fc59,9RK1FGG8UQ,DEB,Ana Gomez,Pago nomina 1,3.00,col04,2025-08-23
+4,1876244311,col01,82107a5d-1b3a-4dcc-8427-9f5a3fd10cdf,col02,E7491YLF3P,DEB,Juan Perez,col03,a279002b-46c4-432d-b5b2-b77fd4dddd3f,1P619N00AY,DEB,Ana Gomez,Pago nomina 1,5.00,col04,2025-08-23
+5,18762443,col01,f34117e0-bebc-490d-bf90-68029903784e,col02,5UW6WZOEGZ,DEB,Juan Perez,col03,101fbd74-c9b2-480c-8a51-cc9d03e8eac8,OF1IN9CSDZ,DEB,Luis Martinez,Pago nomina 2,4.00,col04,2025-08-23
+6,00001234,col01,81fb9c31-bda2-473a-9c1a-675519ca513f,col02,QNYKRWOKWN,DEB,Juan Perez,col03,,DEB,Ana Gomez,Pago nomina 1,7.00,col04,2025-08-23
+7,00001234,col01,82107a5d-1b3a-4dcc-8427-9f5a3fd10cdf,col02,E7491YLF3P,DEB,Juan Perez,col03,,DEB,Luis Martinez,Pago nomina 2,6.00,col04,2025-08-23
