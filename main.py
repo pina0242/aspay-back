@@ -2,7 +2,7 @@
 python -m venv aspay
 .\aspay\Scripts\activate
 uvicorn main:app --reload --port 9000
-prueba pablo piña
+prueba pablo piña diana
 
 """
 from fastapi import FastAPI , Request , HTTPException , Depends
