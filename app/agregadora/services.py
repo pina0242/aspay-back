@@ -103,7 +103,7 @@ class AgrService:
 
             with ThreadPoolExecutor(max_workers=10) as executor:
                 resultados = list(executor.map(f0, ctas_entries))
-                # print('resultados',resultados)
+                print('resultados',resultados)
         
 
             # inicio = time.time()
