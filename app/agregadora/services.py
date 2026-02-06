@@ -13,6 +13,9 @@ from datetime import timedelta, datetime, date
 from sqlalchemy.orm import Session,sessionmaker
 import logging
 import json 
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 from contextlib import contextmanager
 from collections import defaultdict
 logger = logging.getLogger(__name__)
@@ -78,17 +81,53 @@ class AgrService:
             rc = 400
 
         if estado:
-            # with self.session_scope() as session:
+
                                                 
-            ctas_entries = db.query(DBCTAPERS).order_by(DBCTAPERS.id.desc()).where(DBCTAPERS.entidad == entidad,DBCTAPERS.estatus=='A').all() 
+            ctas_entries = db.query(DBCTAPERS).order_by(DBCTAPERS.id.desc()).where(DBCTAPERS.entidad == entidad,DBCTAPERS.estatus=='A',DBCTAPERS.entban != '9999').all()
+            ctas_entriesAS = db.query(DBCTAPERS).order_by(DBCTAPERS.id.desc()).where(DBCTAPERS.entidad == entidad,DBCTAPERS.estatus=='A',DBCTAPERS.entban == '9999').all() 
+
+            def f0(ctas_entries):
+
+                datos_decrypted, decrypt_estado = decrypt_message(password, ctas_entries.datos)
+                cuenta = datos_decrypted
+
+                saldoeasy = self.recsaldos(cuenta, ctas_entries.alias, db)
+
+
+                saldo = saldoeasy["resp"][0].get("saldo", 0) if saldoeasy["resp"] else 0
+
+                time.sleep(2)
+                return saldo
+
+
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                resultados = list(executor.map(f0, ctas_entries))
+                # print('resultados',resultados)
+        
+
+            # inicio = time.time()
+
+
+            # fin = time.time()
+            # tiempo_total = fin - inicio
+
+            # print(f"\nTiempo total de ejecución: {tiempo_total:.2f} segundos")
+            # print(f"Se ejecutaron {len(ctas_entries)} funciones en paralelo, cada una tarda 10 segundos")
+            # print(f"En serie hubiera tardado {len(ctas_entries)*10} segundos, pero en paralelo solo {tiempo_total:.2f} segundos")
+
+
 
             if ctas_entries:
+                cont = 0
                 for entry in ctas_entries:
+
+
                     # Desencriptar el campo 'datos' después de recuperarlo de la DB
                     datos_decrypted, decrypt_estado = decrypt_message(password, entry.datos)
                     if not decrypt_estado:
                         datos_decrypted = "Error al desencriptar datos" # Manejar error de desencriptación
-                    print('entry moneda:', entry.moneda)
+                    # print('entry moneda:', entry.moneda)
 
                     tipo_cambio = 0
                     if entry.moneda != 'EUR':
@@ -100,12 +139,13 @@ class AgrService:
                         ctas_saldos =  db.query(DBSALDOS).where( DBSALDOS.tkncli==entry.tknper,).first()
                         saldo = ctas_saldos.saldo
                     else:
-                        print('entro EASY RENT',entry.datos)
-                        cuenta = datos_decrypted
-                        saldoeasy = self.recsaldos(cuenta, entry.alias, db)
+                        # print('entro EASY RENT',entry.datos)
+                        saldo = resultados[cont]
+                        # cuenta = datos_decrypted
+                        # saldoeasy = self.recsaldos(cuenta, entry.alias, db)
 
-                        # Siempre seguro: si no hay saldo, devuelve 0
-                        saldo = saldoeasy["resp"][0].get("saldo", 0) if saldoeasy["resp"] else 0
+                        # # Siempre seguro: si no hay saldo, devuelve 0
+                        # saldo = saldoeasy["resp"][0].get("saldo", 0) if saldoeasy["resp"] else 0
 
                     categoria = entry.categoria
                     importe = saldo
@@ -132,6 +172,51 @@ class AgrService:
 
                         })
 
+                    cont += 1
+            if ctas_entriesAS:
+
+                for entryAS in ctas_entriesAS:
+
+                    datos_decrypted, decrypt_estado = decrypt_message(password, entryAS.datos)
+                    if not decrypt_estado:
+                        datos_decrypted = "Error al desencriptar datos" # Manejar error de desencriptación
+
+
+                    tipo_cambio = 0
+                    if entryAS.moneda != 'EUR':
+                        print('voy a tipo cambio por aspay: ', entryAS.moneda)
+                        tipo_cambio = busca_tipo_cambio(entryAS.moneda,db)
+                     
+
+                    ctas_saldos =  db.query(DBSALDOS).where( DBSALDOS.tkncli==entryAS.tknper,).first()
+                    saldoAS = ctas_saldos.saldo
+
+
+                    categoria = entryAS.categoria
+                    importe = saldoAS
+                    resumen[categoria] += importe
+
+                    result.append({
+                        'id': entryAS.id,
+                        'entidad':entryAS.entidad,
+                        'tknper': entryAS.tknper,
+                        'pais': entryAS.pais,
+                        'moneda': entryAS.moneda,
+                        'tipo_cambio': tipo_cambio,
+                        'entban': entryAS.entban,
+                        'tipo': entryAS.tipo,
+                        'alias': entryAS.alias,
+                        'datos': datos_decrypted, # Devolver datos desencriptados
+                        'indoper': entryAS.indoper,
+                        'estatus': entryAS.estatus,
+                        'categoria':entryAS.categoria,
+                        'fecha_alta': entryAS.fecha_alta.strftime("%Y-%m-%d"),
+                        'usuario_alta': entryAS.usuario_alta,
+                        'saldo': saldoAS,
+                        'resumen': resumen
+
+                        })
+
 
 
                 print(dict(resumen))
@@ -141,6 +226,7 @@ class AgrService:
                 encripresult, estado = encrypt_message(password, message)
                 result = encripresult
             else:
+                print('llega vacio???',ctas_entriesAS)
                 result.append({'response': 'No existen datos a listar con los criterios proporcionados.'})
                 rc = 400
         return result, rc 
@@ -229,7 +315,7 @@ class AgrService:
                             'signo':selmovto.signo,
                             'importe':selmovto.importe,
                             'concepto':selmovto.concepto,
-                            'fecha_movto':selmovto.fecha_movto.strftime("%Y-%m-%d")                                                                                                             
+                            'fecha_movto':selmovto.fecha_movto.strftime("%Y-%m-%d")                                                                                                   
                                 })
  
 
