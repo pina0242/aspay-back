@@ -4,6 +4,8 @@ python -m venv aspay
 uvicorn main:app --reload --port 9000
 prueba pablo piña diana Version 8
 
+prueba alex
+
 """
 from fastapi import FastAPI , Request , HTTPException , Depends
 from app.core.database import Base, engine,  get_db
