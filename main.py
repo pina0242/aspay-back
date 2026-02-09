@@ -4,13 +4,10 @@ python -m venv aspay
 uvicorn main:app --reload --port 9000
 prueba pablo piña diana Version 8
 
-<<<<<<< HEAD
 prueba alex
 
-=======
 
 Prueba Diana
->>>>>>> f86b42761b66d581d7888a2d2d8d6f316cb2acfa
 """
 from fastapi import FastAPI , Request , HTTPException , Depends
 from app.core.database import Base, engine,  get_db
