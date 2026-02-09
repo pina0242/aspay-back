@@ -19,6 +19,9 @@ from app.core.config import settings
 from app.core.auth import create_access_token
 from app.core.cypher import encrypt_message , decrypt_message
 
+from typing import Dict, Any, List, Optional, Tuple
+
+
 from app.core.database import SessionLocal
 logger = logging.getLogger(__name__)
 
@@ -1960,3 +1963,1110 @@ def calcula_costo_txs(costos_df, indcost_entrada, cantidad):
     else:
         print(f"Indcost {indcost_entrada} no reconocido. Costo = 0")
         return 0.0
+    
+
+
+
+def calif_opcion1(doc_id, pais_resid, act_econ, session):
+
+    # """
+    # Genera calificación de localidad y actividad económica para una persona fisica o moral, orientada a la comunidad europea.
+    # Args:
+    #     doc_id (str) : Id de la persona - documento de identificación.
+    #     pais_resid   : Pais de residencia de la persona.
+    #     act_econ     : Clave de actividad económica.
+    # Returns:
+    #     dict: Un diccionario con el resultado de la calificación.
+    # """
+
+    resultado_calif = {
+
+        "persona": {
+            "doc_id": doc_id
+        },
+
+        "evaluacion_riesgo": {
+            "riesgo_geografico": "B",
+            "riesgo_act_econ": "B",
+            "riesgo_total": "B"
+        },
+        # "aprobacion_kyc": "False",
+        "razon_aprobacion_rechazo": []
+
+    }
+
+    # --- 1. Evalúa su riesgo geográfico y de edad ---
+    # Recuperación de países de la UE desde DBTCORP
+    try:
+        paises_ue_query = session.query(DBTCORP).filter_by(llave='PAISUE', status='A').all()
+        paises_ue = [p.datos for p in paises_ue_query]
+        
+        # Recuperación de países de alto riesgo desde DBTCORP
+        paises_alto_riesgo_ue_query = session.query(DBTCORP).filter_by(llave='PAISRSGO', status='A').all()
+        paises_alto_riesgo_ue = [p.datos for p in paises_alto_riesgo_ue_query]
+
+        # Recuperación de actividades econ de alto riesgo desde DBTCORP
+        actecon_alto_riesgo_ue_query = session.query(DBTCORP).filter_by(llave='ACTECORZ', status='A').all()
+        actecon_alto_riesgo_ue = [a.clave for a in actecon_alto_riesgo_ue_query]
+        
+        if not paises_ue:
+            # Fallback o manejo de error si no se encuentran países de la UE
+            paises_ue = ["España", "Alemania", "Francia", "Italia", "Portugal", "Bélgica", "Países Bajos"]
+            print("Advertencia: No se encontraron países de la UE en la base de datos, usando lista predeterminada.")
+        if not paises_alto_riesgo_ue:
+            # Fallback o manejo de error si no se encuentran países de alto riesgo
+            paises_alto_riesgo_ue = [
+                "Corea del Norte", "Irán", "Siria", "Yemen", "República Democrática del Congo",
+                "Haití", "Marruecos", "Filipinas", "Panamá", "Sudáfrica", "Nigeria", "Kenia",
+                "Angola", "Mozambique", "Myanmar", "Tanzania", "Colombia"
+            ]
+            print("Advertencia: No se encontraron países de alto riesgo en la base de datos, usando lista predeterminada.")
+        if not actecon_alto_riesgo_ue:
+            # Fallback o manejo de error si no se encuentran países de alto riesgo
+            actecon_alto_riesgo_ue = [
+                "C32.11", "L64.31","L64.19","N69.2", "M68.32", "M68.31",
+                "M68.2", "M68.11", "S92", "G46.82", "G46.12", "C24.41", "C24.45"            ]
+            print("Advertencia: No se encontraron activ econ de alto riesgo en la base de datos, usando lista predeterminada.")
+
+    except Exception as e:
+        print(f"Error al cargar países desde la base de datos: {e}")
+        # En caso de error de DB, usar listas predefinidas para que la función no falle
+        paises_ue = ["España", "Alemania", "Francia", "Italia", "Portugal", "Bélgica", "Países Bajos"]
+        paises_alto_riesgo_ue = [
+            "Corea del Norte", "Irán", "Siria", "Yemen", "República Democrática del Congo",
+            "Haití", "Marruecos", "Filipinas", "Panamá", "Sudáfrica", "Nigeria", "Kenia",
+            "Angola", "Mozambique", "Myanmar", "Tanzania", "Colombia"
+        ]
+        resultado_calif["razon_aprobacion_rechazo"].append(f"Error al cargar catálogos de países: {e}")
+
+
+    # El riesgo geográfico se activará por los países de destino de las transacciones.
+    # Verificar el país de residencia Fiscal (pais_resid)
+    if pais_resid not in paises_ue:
+        if pais_resid in paises_alto_riesgo_ue:
+            resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] = "Alto"
+            resultado_calif["razon_aprobacion_rechazo"].append(f"País de residencia '{pais_resid}' no es un país de la UE. Riesgo geográfico Alto.")
+        else:
+            resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] = "Medio"
+            resultado_calif["razon_aprobacion_rechazo"].append(f"País de residencia '{pais_resid}' es un país alto riesgo. Riesgo geográfico Medio.")
+    else:
+        resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] = "Bajo"
+
+
+    # Verificar la actividad económica (act_econ)
+    if act_econ not in actecon_alto_riesgo_ue:
+        resultado_calif["evaluacion_riesgo"]["riesgo_act_econ"] = "Bajo"
+    else:
+        resultado_calif["evaluacion_riesgo"]["riesgo_act_econ"] = "Alto"
+        resultado_calif["razon_aprobacion_rechazo"].append(f"Actividad económica '{act_econ}' catalogada como Alto riesgo en UE.")
+
+    
+    if  resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] == "Alto" or \
+        resultado_calif["evaluacion_riesgo"]["riesgo_act_econ"] == "Alto":
+        resultado_calif["evaluacion_riesgo"]["riesgo_total"] = "Alto"
+        resultado_calif["razon_aprobacion_rechazo"].append("Cliente NO cumple los criterios de aprobación por localidad y/o activ econ.")
+    else:
+        if  resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] == "Medio":
+            resultado_calif["evaluacion_riesgo"]["riesgo_total"] = "Medio"
+        else:
+            resultado_calif["evaluacion_riesgo"]["riesgo_total"] = "Bajo"
+            resultado_calif["razon_aprobacion_rechazo"].append("Cliente SIN RIESGO cumple los criterios de aprobación KYC.")
+
+ 
+    return resultado_calif
+
+def calif_opcion23(nombre,ap_paterno,ap_materno,fecha_nac_const,nacionalidad,alias,ocupa_giro,pais):
+
+    # """
+    # Genera calificación para buscar si lapersona es PEP, se encuentra en listas de sanciones y medios adversos.
+    # Args:
+    #     nombre (str) : nombre de la persona.
+    #     pais_resid   : Pais de residencia de la persona o empresa.
+    #     ocupa_giro   : Ocupación de la persona o giro de la empresa.
+    # Returns:
+    #     dict: Un diccionario con el resultado de la búsqueda.
+    # """
+    #print('si entro')
+    resultado_calif = {
+
+        "persona": {
+            "nombre": nombre
+        },
+
+        "evaluacion": {
+            "ind_pep": "N",
+            "ind_listas_riesgo": "N",
+            "ind_medios_adversos": "N"
+        },
+        # "aprobacion_kyc": "False",
+        "salida_busqueda": []
+
+    }
+
+    info_parts = []
+       
+    if fecha_nac_const:
+       info_parts.append(f"Fecha de nacimiento: {fecha_nac_const}")
+       
+    if nacionalidad:
+        info_parts.append(f"Nacionalidad: {nacionalidad}")
+    
+    if ocupa_giro:
+        info_parts.append(f"Ocupación: {ocupa_giro}")
+      
+    if pais:
+        info_parts.append(f"Residencia: {pais}")
+       
+    info_parts = " | ".join(info_parts) if info_parts else "Sin información adicional"
+    
+    full_name = " ".join(campo.strip() for campo in [nombre, ap_paterno, ap_materno] if campo.strip())
+    if info_parts:
+        person_description = full_name + " " + info_parts
+    else:
+        person_description = full_name
+
+    # Crear diccionario con toda la información
+    person_data = {
+        "full_name": full_name,
+        "nombre": nombre,
+        "ap_paterno": ap_paterno,
+        "ap_materno": ap_materno,
+        "fecha_nac_const": fecha_nac_const,
+        "nacionalidad": nacionalidad,
+        "alias": alias,
+        "ocupa_giro": ocupa_giro,
+        "pais": pais,
+        "person_description": person_description,
+        "info_parts": info_parts
+    }
+
+    print('person_description', person_description)
+
+    generar_reporte: bool = True
+    #guardar_json: bool = True
+
+    prompt = f"""Analiza la información pública disponible sobre la siguiente persona:
+ 
+    INFORMACIÓN DE LA PERSONA:
+    - Nombre completo: {full_name}
+    {f"- Fecha de nacimiento: {fecha_nac_const}" if fecha_nac_const else ""}
+    {f"- Nacionalidad: {nacionalidad}" if nacionalidad else ""}
+    {f"- Ocupación conocida: {ocupa_giro}" if ocupa_giro else ""}
+    {f"- País de residencia: {pais}" if pais else ""}
+    {f"- Alias conocidos: {alias}" if alias else ""}
+    
+    CONTEXTO DE DESAMBIGUACIÓN: {info_parts if info_parts else "Sin información adicional para desambiguar"}
+    
+    OBJETIVO: Identificar indicios objetivos de exposición política o reputación en medios, considerando posibles homonimías.
+    
+    INSTRUCCIONES PARA MITIGAR HOMONIMÍAS:
+    1. PRIORIZAR información que coincida con TODOS los datos proporcionados
+    2. DIFERENCIAR claramente entre personas con nombres similares
+    3. Cuando haya ambigüedad, especificar "posible homonimía detectada"
+    4. Si existen múltiples personas con el mismo nombre, analizar por separado
+    
+    CRITERIOS MEJORADOS PARA "PERSONA POLÍTICAMENTE EXPUESTA" (PEP):
+    A) NIVEL ALTO DE EXPOSICIÓN (claramente PEP):
+    - Altos cargos públicos actuales/pasados (ministros, senadores, jueces superiores)
+    - Familiares directos de altos funcionarios en ejercicio
+    - Altos mandos militares o de inteligencia
+    
+    B) NIVEL MEDIO DE EXPOSICIÓN (potencialmente PEP):
+    - Funcionarios públicos de nivel medio
+    - Cargos en empresas estatales estratégicas
+    - Líderes políticos regionales/locales
+    
+    C) NIVEL BAJO/NO PEP:
+    - Funcionarios de bajo rango sin autoridad significativa
+    - Personas sin cargos públicos identificables
+    
+    CRITERIOS PARA "REPUTACIÓN EN MEDIOS":
+    1. VOLUMEN Y FRECUENCIA:
+    - Alta: Menciones frecuentes en medios nacionales/internacionales
+    - Media: Menciones ocasionales o en medios especializados
+    - Baja: Pocas menciones o solo en medios locales
+    
+    2. NATURALEZA DE LAS MENCIONES:
+    - Investigaciones periodísticas serias
+    - Casos judiciales documentados
+    - Controversias públicas sostenidas
+    - Reconocimientos positivos verificables
+    
+    3. TEMPORALIDAD:
+    - Patrones recientes (últimos 5 años)
+    - Eventos históricos relevantes
+    - Tendencias temporales claras
+    
+    METODOLOGÍA DE ANÁLISIS:
+    FASE 1: VERIFICACIÓN DE IDENTIDAD
+    - Confirmar que la información se refiere a la persona específica
+    - Identificar posibles confusiones con homónimos
+    - Validar coherencia temporal y geográfica
+    
+    FASE 2: EVALUACIÓN DE PEP
+    - Listar específicamente cargos públicos verificados
+    - Documentar períodos de ejercicio
+    - Identificar nivel de influencia
+    
+    FASE 3: ANÁLISIS DE REPUTACIÓN
+    - Categorizar tipos de menciones en medios
+    - Evaluar credibilidad de las fuentes
+    - Considerar contexto cultural y legal
+    
+    FORMATO DE RESPUESTA OBLIGATORIO:
+    {{
+    "analisis": {{
+        "persona_identificada": {{
+        "nombre_completo": "{full_name}",
+        "datos_desambiguacion": "{info_parts}",
+        "coincidencia_informacion": "alta/media/baja/indeterminada",
+        "homonimias_detectadas": [
+            {{
+            "nombre_similar": "Nombre similar encontrado",
+            "diferenciadores": ["diferencia 1", "diferencia 2"],
+            "nivel_confusion": "alto/medio/bajo"
+            }}
+        ]
+        }},
+        "indicadores_pep": {{
+        "categoria_pep": "alto/medio/bajo/no_pep/indeterminado",
+        "cargos_publicos_verificados": [
+            {{
+            "cargo": "Nombre del cargo",
+            "periodo": "YYYY-YYYY o actual",
+            "nivel": "nacional/regional/local",
+            "fuente_verificacion": "tipo de fuente"
+            }}
+        ],
+        "familiares_pep": [
+            {{
+            "parentesco": "tipo de relación",
+            "nombre_familiar": "nombre",
+            "cargo": "cargo del familiar"
+            }}
+        ],
+        "influencia_documentada": "descripción específica",
+        "nivel_exposicion_detallado": {{
+            "politica": "alto/medio/bajo/ninguno",
+            "financiera": "alto/medio/bajo/ninguno",
+            "mediatica": "alto/medio/bajo/ninguno"
+        }}
+        }},
+        "reputacion_medios": {{
+        "analisis_cuantitativo": {{
+            "volumen_menciones": "alta/media/baja/insuficiente",
+            "tendencia_temporal": "creciente/estable/decreciente/indeterminada",
+            "alcance_geografico": ["países/regiones"]
+        }},
+        "analisis_cualitativo": {{
+            "tipos_contenido": ["investigativo", "judicial", "político", "social", "otros"],
+            "tonalidad_promedio": "positiva/neutral/negativa/mezclada",
+            "controversias_verificadas": [
+            {{
+                "tema": "tema específico",
+                "periodo": "año(s)",
+                "estado": "resuelto/en_proceso/indeterminado",
+                "fuentes_primarias": ["tipo de fuentes"]
+            }}
+            ]
+        }},
+        "fuentes_relevantes": [
+            {{
+            "medio": "nombre del medio",
+            "tipo": "prensa escrita/televisión/radio/digital",
+            "credibilidad": "alta/media/baja",
+            "ejemplo_mencion": "ejemplo específico"
+            }}
+        ]
+        }},
+        "evaluacion_riesgos": {{
+        "riesgo_reputacional": "alto/medio/bajo/indeterminado",
+        "riesgo_regulatorio": "alto/medio/bajo/indeterminado",
+        "riesgo_asociacion": "alto/medio/bajo/indeterminado",
+        "factores_atenuantes": ["factores que reducen riesgo"],
+        "factores_agravantes": ["factores que aumentan riesgo"]
+        }},
+        "advertencias_metodologicas": [
+        "limitación 1",
+        "limitación 2",
+        "advertencia sobre sesgos potenciales"
+        ],
+        "nivel_confianza_global": "alto/medio/bajo",
+        "recomendaciones_accion": [
+        "acción recomendada 1",
+        "acción recomendada 2"
+        ],
+        "sugerencias_verificacion": [
+        "verificación sugerida 1",
+        "verificación sugerida 2"
+        ]
+    }}
+    }}
+    
+    IMPORTANTE:
+    1. Si la información es insuficiente para confirmar identidad, indicar EXPLÍCITAMENTE
+    2. Priorizar precisión sobre completitud
+    3. Destacar cualquier inconsistencia en los datos
+    4. Proporcionar estimaciones de confianza para cada afirmación"""
+
+    #***    ANALISIS    ***
+    print(f"\n Iniciando análisis avanzado para: {full_name}")
+    print("   Este proceso incluye mitigación de homonimías y análisis ético...")
+       
+    # Realizar análisis
+    resultado = analyze_person(prompt,person_data)
+   
+    # Procesar resultados
+    if resultado["success"]:
+        print(" Análisis completado exitosamente")
+       
+        if generar_reporte:
+            # Generar y mostrar reporte
+            reporte = generate_comprehensive_report(resultado)
+            print("\n" + reporte)
+           
+            # # Guardar reporte en archivo
+            # nombre_archivo = f"analisis_{person_description.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            # with open(nombre_archivo, 'w', encoding='utf-8') as f:
+            #     f.write(reporte)
+            # print(f"\n Reporte guardado en: {nombre_archivo}")
+      
+        # if guardar_json:
+        #     # Guardar JSON completo
+        #     json_archivo = f"datos_completos_{person_description.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        #     with open(json_archivo, 'w', encoding='utf-8') as f:
+        #         json.dump(resultado, f, ensure_ascii=False, indent=2)
+        #     print(f" Datos completos guardados en: {json_archivo}")
+       
+        # Resumen rápido en consola
+        print("\n RESUMEN RÁPIDO:")
+        if "analisis" in resultado.get("analysis", {}):
+            datos = resultado["analysis"]["analisis"]
+            print(f"   • Categoría PEP: {datos.get('indicadores_pep', {}).get('categoria_pep', 'No determinado').upper()}")
+            print(f"   • Riesgo reputacional: {datos.get('evaluacion_riesgos', {}).get('riesgo_reputacional', 'No determinado').upper()}")
+            print(f"   • Confianza: {datos.get('nivel_confianza_global', 'Indeterminado').upper()}")
+            resultado_calif["evaluacion"]["ind_pep"] = f"   • Categoría PEP: {datos.get('indicadores_pep', {}).get('categoria_pep', 'No determinado').upper()}"
+            resultado_calif["evaluacion"]["ind_listas_riesgo"] = f"   • Riesgo reputacional: {datos.get('evaluacion_riesgos', {}).get('riesgo_reputacional', 'No determinado')}"
+            resultado_calif["evaluacion"]["ind_medios_adversos"] = f"   • Reputacion medios: {datos.get('reputacion_medios', {}).get('analisis_cuantitativo', 'No determinado')}"
+            resultado_calif["salida_busqueda"] = reporte
+    else:
+        print(f" Error en el análisis: {resultado.get('error')}")
+
+    # if  resultado_calif["evaluacion"]["ind_pep"] == "S" or \
+    #     resultado_calif["evaluacion"]["ind_listas_riesgo"] == "S" or \
+    #     resultado_calif["evaluacion"]["ind_medios_adversos"] == "S":
+    #     resultado_calif["razon_busqueda"].append("Cliente NO cumple los criterios de aprobación por localidad y/o activ econ.")
+    # else:
+    #     resultado_calif["razon_busqueda"].append("Cliente SIN registro de PEP, listas_paises_riesgo y medios_adversos.")
+ 
+    return resultado_calif
+
+def analyze_person(prompt, person_data):
+        """
+        Realiza el análisis de la persona usando DeepSeek API
+       
+        Args:
+            person_data: Información estructurada de la persona
+            prompt: Información de la solicitud para Deepseek
+           
+        Returns:
+            Diccionario con el análisis estructurado
+        """
+        # Inicializar analizador
+        api_key = "sk-ef50ae255af24d598944592535be1f77"  # Reemplazar con tu API key    
+        base_url = "https://api.deepseek.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+       
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": """Eres un analista de inteligencia ético especializado en due diligence y mitigación de riesgos.
+                    Tu expertise incluye:
+                    1. Identificación precisa de personas (incluyendo manejo de homonimías)
+                    2. Evaluación de exposición política (PEP)
+                    3. Análisis de reputación en medios
+                    4. Mitigación de sesgos cognitivos
+                   
+                    Tu objetivo es proporcionar análisis objetivos, equilibrados y basados exclusivamente en información verificable.
+                    Debes ser transparente sobre limitaciones y reconocer explícitamente cuando la información es insuficiente."""
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.2,  # Temperatura muy baja para máxima consistencia
+            "max_tokens": 3000,
+            "top_p": 0.95
+        }
+       
+        try:
+            response = requests.post(
+                base_url,
+                headers=headers,
+                json=payload,
+                timeout=45
+            )
+            response.raise_for_status()
+           
+            result = response.json()
+            analysis_text = result["choices"][0]["message"]["content"]
+           
+            # Extraer y parsear JSON de la respuesta
+            analysis_data = _extract_json_from_response(analysis_text)
+           
+            return {
+                "success": True,
+                "person_info": person_data,
+                "analysis": analysis_data,
+                "api_usage": result.get("usage", {}),
+                "prompt_metadata": {
+                    "has_birth_date": person_data.get("fecha_nac_const") is not None,
+                    "has_additional_info": any([
+                        person_data.get("nacionalidad"),   
+                    person_data.get("ocupa_giro"),     
+                    person_data.get("pais"),           
+                    person_data.get("alias")           
+                    ])
+                }
+            }
+           
+        except requests.exceptions.RequestException as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "person_info": person_data
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error inesperado: {str(e)}",
+                "person_info": person_data
+            }
+   
+def _extract_json_from_response(text: str) -> Dict[str, Any]:
+        """
+        Extrae y parsea JSON de la respuesta del modelo
+       
+        Args:
+            text: Texto de respuesta del modelo
+           
+        Returns:
+            Diccionario con los datos parseados
+        """
+        try:
+            # Buscar el primer '{' y el último '}'
+            start = text.find('{')
+            end = text.rfind('}') + 1
+           
+            if start != -1 and end > start:
+                json_str = text[start:end]
+                # Limpiar posibles caracteres inválidos
+                json_str = re.sub(r',\s*}', '}', json_str)
+                json_str = re.sub(r',\s*]', ']', json_str)
+               
+                return json.loads(json_str)
+            else:
+                # Intentar encontrar JSON con diferentes patrones
+                patterns = [
+                    r'```json\s*(.*?)\s*```',
+                    r'```\s*(.*?)\s*```',
+                    r'{(.*)}'
+                ]
+               
+                for pattern in patterns:
+                    match = re.search(pattern, text, re.DOTALL)
+                    if match:
+                        json_str = match.group(1) if pattern != r'{(.*)}' else f"{{{match.group(1)}}}"
+                        try:
+                            return json.loads(json_str)
+                        except:
+                            continue
+               
+                # Si no se encuentra JSON, devolver respuesta cruda
+                return {"raw_response": text}
+               
+        except json.JSONDecodeError as e:
+            return {
+                "parse_error": str(e),
+                "raw_response": text[:500] + "..." if len(text) > 500 else text
+            }
+   
+def generate_comprehensive_report(analysis_result: Dict[str, Any]) -> str:
+        """
+        Genera un reporte comprensivo con visualización de datos
+       
+        Args:
+            analysis_result: Resultado del análisis
+           
+        Returns:
+            Reporte formateado
+        """
+        if not analysis_result.get("success"):
+            return _generate_error_report(analysis_result)
+       
+        person_info = analysis_result.get("person_info", {})
+        analysis = analysis_result.get("analysis", {})
+       
+        # Verificar si hay análisis estructurado
+        if "analisis" not in analysis:
+            return _generate_raw_report(analysis)
+       
+        data = analysis["analisis"]
+       
+        # Construir reporte
+        report_lines = []
+       
+        # Encabezado
+        #report_lines.append("=" * 100)
+        report_lines.append(" *** ANÁLISIS DE DUE DILIGENCE AVANZADO ***")
+        #report_lines.append("=" * 100)
+        report_lines.append("")
+       
+        # Información de la persona
+        report_lines.append("[INFORMACIÓN ANALIZADA]")
+        report_lines.append(f"Nombre completo: {person_info.get('full_name', 'No proporcionado')}")
+       
+        if person_info.get('Fecha de nacimiento'):
+            report_lines.append(f"Fecha de nacimiento: {person_info['Fecha de nacimiento']}")
+        if person_info.get('nacionalidad'):
+            report_lines.append(f"Nacionalidad: {person_info['nacionalidad']}")
+        if person_info.get('ocupa_giro'):
+            report_lines.append(f"Ocupación: {person_info['ocupa_giro']}")
+       
+        report_lines.append("")
+       
+        # Identificación de persona
+        persona_id = data.get("persona_identificada", {})
+        report_lines.append("[IDENTIFICACIÓN Y DESAMBIGUACIÓN]")
+        report_lines.append(f"Coincidencia de información: {persona_id.get('coincidencia_informacion', 'No determinada').upper()}")
+       
+        homonimias = persona_id.get("homonimias_detectadas", [])
+        if homonimias:
+            report_lines.append(f"Homonimías detectadas: {len(homonimias)}")
+            for i, hom in enumerate(homonimias, 1):
+                report_lines.append(f"  {i}. {hom.get('nombre_similar', 'Desconocido')}")
+                report_lines.append(f"     Nivel de confusión: {hom.get('nivel_confusion', 'indeterminado')}")
+       
+        report_lines.append("")
+       
+        # Análisis PEP
+        pep_data = data.get("indicadores_pep", {})
+        report_lines.append("[ANÁLISIS DE PERSONA POLÍTICAMENTE EXPUESTA (PEP)]")
+        report_lines.append(f"Categoría PEP: {pep_data.get('categoria_pep', 'No determinado').upper()}")
+       
+        cargos = pep_data.get("cargos_publicos_verificados", [])
+        if cargos:
+            report_lines.append(f"Cargos públicos identificados: {len(cargos)}")
+            for cargo in cargos[:3]:  # Mostrar máximo 3 cargos
+                report_lines.append(f"  • {cargo.get('cargo', 'Desconocido')} ({cargo.get('periodo', 'periodo no especificado')})")
+       
+        # Nivel de exposición detallado
+        exposicion = pep_data.get("nivel_exposicion_detallado", {})
+        if exposicion:
+            report_lines.append("Nivel de exposición detallado:")
+            for area, nivel in exposicion.items():
+                report_lines.append(f"  - {area.capitalize()}: {nivel}")
+       
+        report_lines.append("")
+       
+        # Reputación en medios
+        media_data = data.get("reputacion_medios", {})
+        report_lines.append("[REPUTACIÓN EN MEDIOS]")
+       
+        # Análisis cuantitativo
+        cuant = media_data.get("analisis_cuantitativo", {})
+        if cuant:
+            report_lines.append("Métricas cuantitativas:")
+            report_lines.append(f"  • Volumen de menciones: {cuant.get('volumen_menciones', 'No disponible')}")
+            report_lines.append(f"  • Tendencia temporal: {cuant.get('tendencia_temporal', 'No disponible')}")
+       
+        # Análisis cualitativo
+        cual = media_data.get("analisis_cualitativo", {})
+        if cual:
+            report_lines.append("Evaluación cualitativa:")
+            report_lines.append(f"  • Tonalidad promedio: {cual.get('tonalidad_promedio', 'No disponible')}")
+           
+            controversias = cual.get("controversias_verificadas", [])
+            if controversias:
+                report_lines.append(f"  • Controversias documentadas: {len(controversias)}")
+       
+        report_lines.append("")
+       
+        # Evaluación de riesgos
+        riesgos = data.get("evaluacion_riesgos", {})
+        if riesgos:
+            report_lines.append("[EVALUACIÓN DE RIESGOS]")
+            for riesgo, nivel in riesgos.items():
+                if isinstance(nivel, str) and riesgo.startswith("riesgo_"):
+                    nombre_riesgo = riesgo.replace("riesgo_", "").replace("_", " ").title()
+                    report_lines.append(f"  • Riesgo {nombre_riesgo}: {nivel.upper()}")
+       
+        report_lines.append("")
+       
+        # Nivel de confianza y recomendaciones
+        report_lines.append("[CONFIANZA Y RECOMENDACIONES]")
+        report_lines.append(f"Nivel de confianza global: {data.get('nivel_confianza_global', 'Indeterminado').upper()}")
+       
+        recomendaciones = data.get("recomendaciones_accion", [])
+        if recomendaciones:
+            report_lines.append("Acciones recomendadas:")
+            for i, rec in enumerate(recomendaciones[:5], 1):  # Máximo 5 recomendaciones
+                report_lines.append(f"  {i}. {rec}")
+       
+        report_lines.append("")
+       
+        # Advertencias metodológicas
+        advertencias = data.get("advertencias_metodologicas", [])
+        if advertencias:
+            report_lines.append("[ADVERTENCIAS Y LIMITACIONES]")
+            for adv in advertencias[:3]:  # Máximo 3 advertencias
+                report_lines.append(f"  {adv}")
+       
+        report_lines.append("")
+        report_lines.append("*" * 10)
+        report_lines.append("NOTA: Este análisis debe complementarse con verificación independiente")
+        report_lines.append("y consideración del contexto específico de uso.")
+        report_lines.append("*" * 10)
+       
+        return "\n".join(report_lines)
+   
+def _generate_error_report(result: Dict[str, Any]) -> str:
+        """Genera reporte de error"""
+        return f"""
+        {'*'*10}
+        ERROR EN EL ANÁLISIS
+        {'*'*10}
+             
+        Persona: {result.get('person_info', {}).get('full_name', 'Desconocido')}
+        Error: {result.get('error', 'Error desconocido')}
+               
+        Sugerencias:
+        1. Verificar la conexión a internet
+        2. Confirmar que la API key es válida
+        3. Validar el formato de los datos de entrada
+        {'*'*10}
+        """
+   
+def _generate_raw_report(analysis: Dict[str, Any]) -> str:
+        """Genera reporte para respuestas no estructuradas"""
+        raw_text = analysis.get("raw_response", "Sin respuesta del modelo")
+        
+        return f"""
+        {'*'*10}
+        ANÁLISIS (RESPUESTA NO ESTRUCTURADA)
+        {'*'*10}
+        
+        {raw_text[:2000]}{'...' if len(raw_text) > 2000 else ''}
+        
+        {'*'*10}
+        Nota: El modelo no devolvió un formato JSON estructurado.
+        {'*'*10}
+        """
+
+
+def calif_opcion4( movs, session):
+
+    # """
+    # Genera calificación por movimientos recuperados, orientada a la comunidad europea.
+    # Args:
+    #     movs         : Movimientos de cliente para calificar.
+    # Returns:
+    #     dict: Un diccionario con el resultado de la calificación de movimientos.
+    # """
+
+    # 1. Normalizar entrada - manejar ambos casos
+    if isinstance(movs, dict):
+        if "movimientos" not in movs:
+            return {
+                "transacciones_extraidas": [],
+                "transacciones_sospechosas_marcadas": 0,
+                "aprobacion_calif": False,
+                "razon_aprobacion_rechazo": ["Error: Diccionario no tiene clave 'movimientos'"],
+                # "estadisticas": {
+                #     "total_movimientos_recibidos": 0,
+                #     "movimientos_ultimos_90_dias": 0,
+                #     "porcentaje_sospechosos": 0
+                # }
+            }
+        movimientos_lista = movs["movimientos"]
+    elif isinstance(movs, list):
+        movimientos_lista = movs
+    else:
+        return {
+            "transacciones_extraidas": [],
+            "transacciones_sospechosas_marcadas": 0,
+            "aprobacion_calif": False,
+            "razon_aprobacion_rechazo": [f"Error: Tipo de dato no válido: {type(movs)}"]
+            # "estadisticas": {
+            #     "total_movimientos_recibidos": 0,
+            #     "movimientos_ultimos_90_dias": 0,
+            #     "porcentaje_sospechosos": 0
+            # }
+        }
+    
+    # 2. Validaciones básicas
+    if not movimientos_lista:
+        return {
+            "transacciones_extraidas": [],
+            "transacciones_sospechosas_marcadas": 0,
+            "aprobacion_calif": False,  # O True según tu criterio
+            "razon_aprobacion_rechazo": ["No hay movimientos para analizar"]
+            # "estadisticas": {
+            #     "total_movimientos_recibidos": 0,
+            #     "movimientos_ultimos_90_dias": 0,
+            #     "porcentaje_sospechosos": 0
+            # }
+        }
+    
+    # 3. Inicializar resultados
+    resultado_calif = {
+        "transacciones_extraidas": [],
+        "transacciones_sospechosas_marcadas": 0,
+        "aprobacion_calif": False,
+        "razon_aprobacion_rechazo": []
+        # "estadisticas": {
+        #     "total_movimientos_recibidos": len(movimientos_lista),
+        #     "movimientos_ultimos_90_dias": 0,
+        #     "porcentaje_sospechosos": 0
+        # }
+    }
+    
+    start_date = datetime.now() - timedelta(days=120)
+    #print('fecha_start',start_date)
+    movimientos_filtrados = 0
+    
+    for reg in movimientos_lista:
+        #print(f"ID: {reg['id']}, Concepto: {reg['concepto']}, Importe: {reg['importe']}")
+        try:
+            fecha_str = reg['fecha_movto']
+            try:
+                fecha_movto = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                fecha_movto = datetime.strptime(fecha_str.split('.')[0], '%Y-%m-%d %H:%M:%S')
+            #print('Fecha movto extraído',fecha_movto, 'importe: ',reg['importe'])
+            if fecha_movto >= start_date:
+                    transaccion = {
+                    "fecha": reg['fecha_movto'],
+                    "monto": reg['importe'],
+                    "signo": reg['signo'],  
+                    # "beneficiario": beneficiario,
+                    # "pais_destino": pais_destino,
+                    "sospechosa": False # Se marcará después
+                }
+
+                    resultado_calif["transacciones_extraidas"].append(transaccion)
+                    movimientos_filtrados += 1
+        
+        except KeyError as e:
+            print(f"Advertencia: Falta campo {e} en movimiento ID {reg.get('id', 'desconocido')}")
+            continue
+        except Exception as e:
+            print(f"Error procesando movimiento ID {reg.get('id', 'desconocido')}: {e}")
+            continue
+
+    # Verificar si encontró movimientos en el período
+    if len(resultado_calif["transacciones_extraidas"]) == 0:
+        resultado_calif["razon_aprobacion_rechazo"].append(
+            f"No se encontraron movimientos en los últimos 120 días (desde {start_date.strftime('%Y-%m-%d')})"
+        )
+        resultado_calif["aprobacion_calif"] = False  # O True, según tu criterio de negocio
+
+        return resultado_calif
+
+    # Necesitamos acumular todas las razones de sospecha para el resumen
+    todas_las_razones = []        
+    # Aplicar reglas de negocio solo si hay transacciones
+    for trans in resultado_calif["transacciones_extraidas"]:
+        # Aquí aplicarías tus reglas reales
+        reglas_sospechosas = []
+        
+        # Ejemplo de reglas:
+        if trans["monto"] > 2000:
+            reglas_sospechosas.append("Monto elevado (> 2,000)")
+        
+        # if "casino" in trans["concepto"].lower():
+        #     reglas_sospechosas.append("Concepto relacionado con casino")
+        
+        # if trans["signo"] == "D" and trans["monto"] > 5000:  # Débitos grandes
+        #     reglas_sospechosas.append("Débito de monto elevado")
+        
+        # Marcar como sospechosa si cumple alguna regla
+        if reglas_sospechosas:
+            trans["sospechosa"] = True
+            trans["razones_sospecha"] = reglas_sospechosas  # Guardar razones
+            resultado_calif["transacciones_sospechosas_marcadas"] += 1
+            
+            # Acumular razones para el resumen general
+            todas_las_razones.extend(reglas_sospechosas)
+
+    # Determinar aprobación
+    if resultado_calif["transacciones_sospechosas_marcadas"] == 0:
+        resultado_calif["aprobacion_calif"] = True
+        resultado_calif["razon_aprobacion_rechazo"].append(
+            f"Se analizaron {len(resultado_calif['transacciones_extraidas'])} movimientos. "
+            f"No se detectaron transacciones sospechosas."
+        )
+    else:
+    # Crear un resumen de las razones más frecuentes
+        from collections import Counter
+        if todas_las_razones:
+            contador_razones = Counter(todas_las_razones)
+            razones_resumen = ", ".join([f"{razon} ({count})" for razon, count in contador_razones.most_common(3)])
+            
+            resultado_calif["razon_aprobacion_rechazo"].append(
+                f"Se analizaron {len(resultado_calif['transacciones_extraidas'])} movimientos. "
+                f"Se detectaron {resultado_calif['transacciones_sospechosas_marcadas']} "
+                f"transacciones sospechosas. "
+                f"Razones : {razones_resumen}"
+            )
+        else:
+            resultado_calif["razon_aprobacion_rechazo"].append(
+                f"Se analizaron {len(resultado_calif['transacciones_extraidas'])} movimientos. "
+                f"Se detectaron {resultado_calif['transacciones_sospechosas_marcadas']} "
+                f"transacciones sospechosas."
+            )
+    # # Agregar estadísticas
+    # resultado_calif["estadisticas"] = {
+    #     "total_movimientos_recibidos": len(movs),
+    #     "movimientos_ultimos_90_dias": len(resultado_calif["transacciones_extraidas"]),
+    #     "porcentaje_sospechosos": (
+    #         resultado_calif["transacciones_sospechosas_marcadas"] / 
+    #         len(resultado_calif["transacciones_extraidas"]) * 100
+    #         if len(resultado_calif["transacciones_extraidas"]) > 0 else 0
+    #     )
+    # }    
+ 
+    return resultado_calif
+
+def calif_opcion5( movs):
+
+    # """
+    # Genera calificación por movimientos recuperados, orientada a la comunidad europea.
+    # Args:
+    #     movs         : Movimientos de cliente para calificar.
+    # Returns:
+    #     dict: Un diccionario con el resultado de la calificación de movimientos.
+    # """
+
+    # 1. Normalizar entrada - manejar ambos casos
+    if isinstance(movs, dict):
+        if "movimientos" not in movs:
+            return  {
+            "score_resultado": "SIN CALIFICAR",
+            "puntaje": 0,
+            "motivo_principal": ["Error: Diccionario no tiene clave 'movimientos'"],
+            "cuota_maxima_sugerida": 0.00,
+            }
+    
+        movimientos_lista = movs["movimientos"]
+    elif isinstance(movs, list):
+        movimientos_lista = movs
+    else:
+        return  {
+            "score_resultado": "SIN CALIFICAR",
+            "puntaje": 0,
+            "motivo_principal": [f"Error: Tipo de dato no válido: {type(movs)}"],
+            "cuota_maxima_sugerida": 0,
+            }
+        
+    
+    # 2. Validaciones básicas
+    if not movimientos_lista:
+        return  {
+            "score_resultado": "SIN CALIFICAR",
+            "puntaje": 0,
+            "motivo_principal": ["No hay movimientos para analizar"],
+            "cuota_maxima_sugerida": 0,
+            }
+        
+    
+    # 3. Inicializar resultados
+    
+    resultado_calif = {
+        "score_resultado": "SIN CALIFICAR",
+        "puntaje": 0,
+        "motivo_principal": [],
+        "cuota_maxima_sugerida": 0,
+        "indicadores_clave": {
+            "flujo_caja_neto_total": " ",
+            "flujo_promedio_mensual": " ",
+            "flujo_minimo_mensual": " ",
+            "volatilidad_mensual": " ",
+            "transaccion_promedio": " ",
+        }
+    }
+        
+    df_movimientos = cargar_y_preparar_movimientos(movs)
+ 
+    print( ' df_movimientos:', df_movimientos)
+ 
+    # 1. PREPARACIÓN DE DATOS CLAVE
+ 
+    # 1.1 Conversión de la columna de fecha a formato datetime
+    # Es crucial para el análisis temporal (Flujo Acumulado, Volatilidad Mensual).
+    df_movimientos['fecha_movto'] = pd.to_datetime(df_movimientos['fecha_movto'])
+
+    # 1.2 Creación de la columna 'Flujo' (Ingreso positivo, Egreso negativo)
+    # Signo 'H' (Haber) es Ingreso (+)
+    # Signo 'D' (Débito) es Egreso (-)
+    df_movimientos['Flujo'] = df_movimientos.apply(
+        lambda row: row['importe'] if row['signo'] == 'H' else -row['importe'],
+        axis=1
+    )
+ 
+    # 1.3 Establecer la columna de fecha como índice
+    df_movimientos.set_index('fecha_movto', inplace=True)
+ 
+    # 2. CÁLCULO DE INDICADORES
+ 
+    ## 1. Flujo de Caja Neto Total
+    flujo_caja_neto_total = df_movimientos['Flujo'].sum()
+ 
+    ## 2. Flujo de Caja Acumulado
+    # Calcula el saldo que se habría generado hasta cada transacción
+    df_movimientos['Flujo_Acumulado'] = df_movimientos['Flujo'].cumsum()
+ 
+    ## 3. Transacciones Promedio (Monto Absoluto)
+    transaccion_promedio = df_movimientos['importe'].mean()
+ 
+    ## 4. Flujo de Caja Mensual y Volatilidad Mensual
+
+    # 4.1 Agrupar y sumar el flujo por mes ('M')
+    # Nota: Como todos sus datos son del 2025-12-01, esta agrupación sólo generará un valor (diciembre).
+    # En un conjunto de datos real de varios meses, esto generaría una serie de tiempo.
+    df_flujo_mensual = df_movimientos['Flujo'].resample('ME').sum()
+    df_flujo_mensual.name = 'Flujo_Mensual'
+ 
+    # 4.2 Volatilidad Mensual (Desviación Estándar)
+    # Mide la dispersión del Flujo Mensual.
+    volatilidad_mensual = df_flujo_mensual.std()
+ 
+    # 3. RESULTADOS
+ 
+    print("---  INDICADORES FINANCIEROS CLAVE ---")
+    print(f"1. Flujo de Caja Neto Total: {flujo_caja_neto_total:,.2f}")
+    print(f"2. Transacción Promedio: {transaccion_promedio:,.2f}")
+    print(f"3. Volatilidad del Flujo Mensual (Desviación Estándar): {volatilidad_mensual:,.2f} (Base en Flujo Mensual)")
+ 
+    print("\n---  ANÁLISIS DE SERIES DE TIEMPO ---")
+    print("4. Flujo de Caja Acumulado (últimos 5 movimientos):")
+    print(df_movimientos['Flujo_Acumulado'].tail())
+ 
+    print("\n5. Flujo de Caja Neto por Período (Mensual):")
+    print(df_flujo_mensual)
+
+    # ------------------------------------------------------------
+    ## 3. CÁLCULO DEL SCORING DE CRÉDITO 
+    # ------------------------------------------------------------
+    flujo_mensual_promedio = df_flujo_mensual.mean()
+    flujo_mensual_minimo = df_flujo_mensual.min()  
+    
+    PUNTAJE_BASE = 500
+    MOTIVO_ESTABILIDAD = "N/A"
+   
+    # A. REGLA DE NO ELEGIBILIDAD RÁPIDA (Hard Stops)
+   
+    # 1. Flujo Mínimo Negativo (No puede haber déficit en el peor mes)
+    if flujo_mensual_minimo < 0:
+        MOTIVO_NO_ELEGIBLE = f"Flujo de caja mínimo mensual negativo: {flujo_mensual_minimo:,.2f}"
+        return {"score_resultado": "No Elegible", "cuota_maxima_sugerida": 0,"puntaje": 300, "motivo_principal": MOTIVO_NO_ELEGIBLE}
+ 
+    # 2. Insuficiencia de Datos (No hay suficientes meses para medir volatilidad)
+    if len(df_flujo_mensual) < 3:
+         MOTIVO_NO_ELEGIBLE = f"Insuficiencia de data histórica ({len(df_flujo_mensual)} meses). Se requieren al menos 3 meses."
+         return {"score_resultado": "Sujeto a Revisión", "cuota_maxima_sugerida": 0,"puntaje": 550, "motivo_principal": MOTIVO_NO_ELEGIBLE}
+ 
+    # B. CÁLCULO DE PUNTUACIÓN BASE
+   
+    puntaje = PUNTAJE_BASE
+ 
+    # 1. COMPONENTE DE CAPACIDAD (Peso Positivo)
+    # 1 punto por cada 1000 unidades monetarias de flujo promedio sobre 1000
+    CAPACIDAD_UMBRAL = 1000
+    capacidad_score = max(0, int((flujo_mensual_promedio - CAPACIDAD_UMBRAL) / 1000) * 15) # Aumentamos el peso
+    puntaje += capacidad_score
+ 
+    # 2. COMPONENTE DE ESTABILIDAD (Peso Negativo)
+    if flujo_mensual_promedio > 0:
+        # Relación Volatilidad / Flujo Promedio
+        factor_volatilidad = volatilidad_mensual / flujo_mensual_promedio
+    else:
+        factor_volatilidad = 1.0
+ 
+    # Penalización: Es más alta cuanto mayor sea la relación Volatilidad/Flujo
+    if factor_volatilidad > 0.3: # Penalizamos si la volatilidad excede el 30% del promedio
+        penalizacion_volatilidad = int(factor_volatilidad * 200) # Penalización agresiva
+        puntaje -= penalizacion_volatilidad
+        MOTIVO_ESTABILIDAD = f"Alta volatilidad ({factor_volatilidad:.2f} veces el promedio)"
+    else:
+        MOTIVO_ESTABILIDAD = "Estabilidad adecuada"
+ 
+    # C. DETERMINACIÓN DEL ESTATUS FINAL
+    # Asegurar que el puntaje mínimo sea 300
+    puntaje = max(300, puntaje)
+   
+    if puntaje >= 750:
+        score_final = "Elegible Alto - Max. Crédito Sugerido: 5x Cuota Máxima"
+    elif puntaje >= 600:
+        score_final = "Elegible Medio - Max. Crédito Sugerido: 3x Cuota Máxima"
+    else:
+        score_final = "Sujeto a Revisión - Requiere Aprobación Manual"
+ 
+    # D. CÁLCULO DE CUOTA MÁXIMA SUGERIDA
+    # Usamos el flujo mínimo como el límite prudente para la cuota mensual
+    # Asumimos un factor de seguridad del 20%
+    FACTOR_SEGURIDAD = 0.8
+    cuota_maxima = flujo_mensual_minimo * FACTOR_SEGURIDAD
+    print('cuota_maxima',cuota_maxima)
+    
+    
+    # 4. PRESENTACIÓN Y RETORNO DE RESULTADOS
+ 
+    resultado_calif = {
+        "score_resultado": score_final,
+        "puntaje": puntaje,
+        "motivo_principal": MOTIVO_ESTABILIDAD,
+        "cuota_maxima_sugerida": f"{cuota_maxima:,.2f}",
+        "indicadores_clave": {
+            "flujo_caja_neto_total": f"{flujo_caja_neto_total:,.2f}",
+            "flujo_promedio_mensual": f"{flujo_mensual_promedio:,.2f}",
+            "flujo_minimo_mensual": f"{flujo_mensual_minimo:,.2f}",
+            "volatilidad_mensual": f"{volatilidad_mensual:,.2f}",
+            "transaccion_promedio": f"{transaccion_promedio:,.2f}"
+        }
+    }
+    print("\n---  SCORING DE CRÉDITO GENERADO ---")
+    print(f"Resultado Final: {resultado_calif['score_resultado']}")
+    print(f"Puntaje de Crédito: {resultado_calif['puntaje']}")
+    print(f"Cuota Mensual Máxima Sugerida: ${resultado_calif['cuota_maxima_sugerida']}")
+    print("\n--- DETALLE DE INDICADORES ---")
+    for key, value in resultado_calif['indicadores_clave'].items():
+        print(f"  {key.replace('_', ' ').title()}: {value}")
+ 
+    return resultado_calif
+
+def cargar_y_preparar_movimientos(datos):
+    """
+    Versión simplificada que solo extrae los movimientos a DataFrame.
+    """
+    if isinstance(datos, str):
+        try:
+            datos = json.loads(datos)
+        except:
+            return pd.DataFrame()
+    
+    if not isinstance(datos, dict) or 'movimientos' not in datos:
+        return pd.DataFrame()
+    
+    movimientos = datos['movimientos']
+    
+    if not isinstance(movimientos, list) or len(movimientos) == 0:
+        return pd.DataFrame()
+    
+    return pd.DataFrame(movimientos)

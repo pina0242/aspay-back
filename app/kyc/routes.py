@@ -102,3 +102,181 @@ async def delkyc_endpoint(
             status_code=rc,
             media_type="application/json"
         )
+
+
+
+@router.post("/califopc1")
+async def califopc1_endpoint(
+    request: Request, 
+    claims: Dict[str, Any] = Depends(jwt_required),
+    db: Session = Depends(get_db),  
+    kyc_service: KycService = Depends(get_kyc_service)
+):
+    body = await request.body()
+    datos = body.decode('utf-8')
+    ip_origen = request.state.ip_origen
+    servicio = request.state.servicio
+    access , user , msg =  valrole(claims,servicio, ip_origen,datos,db)
+    if not access:
+        result = []
+        result.append({'response':msg})
+        return Response(
+            content=json.dumps(result),
+            status_code=401,
+            media_type="application/json"
+        )
+        
+    response, rc = kyc_service.califopc1(datos, user, db)
+    
+    return Response(
+            content=json.dumps(response),
+            status_code=rc,
+            media_type="application/json"
+        )
+
+@router.post("/califopc23")
+async def califopc23_endpoint(
+    request: Request, 
+    claims: Dict[str, Any] = Depends(jwt_required),
+    db: Session = Depends(get_db),  
+    kyc_service: KycService = Depends(get_kyc_service)
+):
+    body = await request.body()
+    datos = body.decode('utf-8')
+    ip_origen = request.state.ip_origen
+    servicio = request.state.servicio
+    access , user , msg =  valrole(claims,servicio, ip_origen,datos,db)
+    if not access:
+        result = []
+        result.append({'response':msg})
+        return Response(
+            content=json.dumps(result),
+            status_code=401,
+            media_type="application/json"
+        )
+        
+    response, rc = kyc_service.califopc23(datos, user, db)
+    
+    return Response(
+            content=json.dumps(response),
+            status_code=rc,
+            media_type="application/json"
+        )
+
+@router.post("/califopc4")
+async def califopc4_endpoint(
+    request: Request, 
+    claims: Dict[str, Any] = Depends(jwt_required),
+    db: Session = Depends(get_db),  
+    kyc_service: KycService = Depends(get_kyc_service)
+):
+    body = await request.body()
+    datos = body.decode('utf-8')
+    ip_origen = request.state.ip_origen
+    servicio = request.state.servicio
+    access , user , msg =  valrole(claims,servicio, ip_origen,datos,db)
+    if not access:
+        result = []
+        result.append({'response':msg})
+        return Response(
+            content=json.dumps(result),
+            status_code=401,
+            media_type="application/json"
+        )
+        
+    response, rc = kyc_service.califopc4(datos, user, db)
+    
+    return Response(
+            content=json.dumps(response),
+            status_code=rc,
+            media_type="application/json"
+        )
+
+@router.post("/califopc5")
+async def califopc5_endpoint(
+    request: Request, 
+    claims: Dict[str, Any] = Depends(jwt_required),
+    db: Session = Depends(get_db),  
+    kyc_service: KycService = Depends(get_kyc_service)
+):
+    body = await request.body()
+    datos = body.decode('utf-8')
+    ip_origen = request.state.ip_origen
+    servicio = request.state.servicio
+    access , user , msg =  valrole(claims,servicio, ip_origen,datos,db)
+    if not access:
+        result = []
+        result.append({'response':msg})
+        return Response(
+            content=json.dumps(result),
+            status_code=401,
+            media_type="application/json"
+        )
+        
+    response, rc = kyc_service.califopc5(datos, user, db)
+    
+    return Response(
+            content=json.dumps(response),
+            status_code=rc,
+            media_type="application/json"
+        )
+
+@router.post("/regcalif")
+async def regcalif_endpoint(
+    request: Request, 
+    claims: Dict[str, Any] = Depends(jwt_required),
+    db: Session = Depends(get_db),  
+    kyc_service: KycService = Depends(get_kyc_service)
+):
+    body = await request.body()
+    datos = body.decode('utf-8')
+    ip_origen = request.state.ip_origen
+    servicio = request.state.servicio
+    access , user , msg =  valrole(claims,servicio, ip_origen,datos,db)
+    if not access:
+        result = []
+        result.append({'response':msg})
+        return Response(
+            content=json.dumps(result),
+            status_code=401,
+            media_type="application/json"
+        )
+        
+    response, rc = kyc_service.regcalif(datos, user, db)
+    
+    return Response(
+            content=json.dumps(response),
+            status_code=rc,
+            media_type="application/json"
+        )
+
+@router.post("/selcalif")
+async def selcalif_endpoint(
+    request: Request, 
+    claims: Dict[str, Any] = Depends(jwt_required),
+    db: Session = Depends(get_db),  
+    kyc_service: KycService = Depends(get_kyc_service)
+):
+    body = await request.body()
+    datos = body.decode('utf-8')
+    ip_origen = request.state.ip_origen
+    servicio = request.state.servicio
+    access , user , msg =  valrole(claims,servicio, ip_origen,datos,db)
+    if not access:
+        result = []
+        result.append({'response':msg})
+        return Response(
+            content=json.dumps(result),
+            status_code=401,
+            media_type="application/json"
+        )
+        
+    response, rc = kyc_service.selcalif(datos, user, db)
+    
+    return Response(
+            content=json.dumps(response),
+            status_code=rc,
+            media_type="application/json"
+        )
+
+

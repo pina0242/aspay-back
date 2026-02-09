@@ -920,7 +920,56 @@ class DBCATEG(Base):
         self.nombre    = nombre
         self.status     = status
         self.fecha_alta = datetime.now()
-        self.usuario_alt = usuario_alt           
+        self.usuario_alt = usuario_alt      
+
+
+class DBCALIF(Base):
+    __tablename__               = 'DBCALIF'
+    id                          = Column(Integer, primary_key=True)         
+    entidad                     = Column(String(8), nullable=False)
+    docto_id                    = Column(String(20), nullable=False) 
+    tipo_id                     = Column(String(20), nullable=False) 
+    riesgo_geog                 = Column(String(1),  nullable=False)
+    riesgo_act_econ             = Column(String(1),  nullable=False)
+    riesgo_pep                  = Column(String(1),  nullable=False) 
+    riesgo_list_sanc            = Column(String(1),  nullable=False)
+    riesgo_med_adv              = Column(String(1),  nullable=False)
+    tx_alto_valor               = Column(Integer,    nullable=False)
+    tx_sospechosas              = Column(Integer,    nullable=False)
+    riesgo_movs                 = Column(String(1), nullable=False)
+    razon_riesgo_movs           = Column(String(250), nullable=False)
+    score_crediticio            = Column(Integer,    nullable=False)
+    razon_score_cred            = Column(String(250), nullable=False)
+    cuota_max_sugerida          = Column(Float, nullable=False)
+    estatus                     = Column(String(1),  nullable=False)
+    fecha_alta                  = Column(DateTime())
+    usuario_alta                = Column(String(10) ,nullable=False)
+    fecha_mod                   = Column(DateTime())
+    usuario_mod                 = Column(String(10) ,nullable=False) 
+
+
+    def __init__(self, entidad, docto_id, tipo_id, riesgo_geog, riesgo_act_econ, riesgo_pep, riesgo_list_sanc,riesgo_med_adv, tx_alto_valor, tx_sospechosas,  
+                 riesgo_movs, razon_riesgo_movs, score_crediticio, razon_score_cred, cuota_max_sugerida, estatus, usuario_alta, fecha_mod, usuario_mod):
+        self.entidad              = entidad        
+        self.docto_id             = docto_id     
+        self.tipo_id              = tipo_id 
+        self.riesgo_geog          = riesgo_geog 
+        self.riesgo_act_econ      = riesgo_act_econ
+        self.riesgo_pep           = riesgo_pep
+        self.riesgo_list_sanc     = riesgo_list_sanc
+        self.riesgo_med_adv       = riesgo_med_adv
+        self.tx_alto_valor        = tx_alto_valor
+        self.tx_sospechosas       = tx_sospechosas
+        self.riesgo_movs          = riesgo_movs  
+        self.razon_riesgo_movs    = razon_riesgo_movs  
+        self.score_crediticio     = score_crediticio
+        self.razon_score_cred     = razon_score_cred
+        self.cuota_max_sugerida   = cuota_max_sugerida
+        self.estatus              = estatus
+        self.fecha_alta           = STATIC.obtener_fecha_actual()
+        self.usuario_alta         = usuario_alta
+        self.fecha_mod            = fecha_mod
+        self.usuario_mod          = usuario_mod     
 
 class STATIC:
     @staticmethod
