@@ -9,6 +9,8 @@ prueba alex
 
 
 Prueba Diana version 2
+
+prueba alex ultima 
 """
 from fastapi import FastAPI , Request , HTTPException , Depends
 from app.core.database import Base, engine,  get_db
