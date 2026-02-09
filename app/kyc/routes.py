@@ -8,7 +8,7 @@ from app.core.cai import valrole
 from app.kyc.services import KycService
 from typing import Dict, Any
 import json
-
+#pruebas nuevas Yeye
 
 router = APIRouter()
 
