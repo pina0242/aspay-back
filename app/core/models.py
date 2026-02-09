@@ -974,5 +974,5 @@ class DBCALIF(Base):
 class STATIC:
     @staticmethod
     def obtener_fecha_actual():
-        print ('obteniendo fecha')
+        print ('obteniendo fecha de sistema')
         return datetime.now() - timedelta(hours=6)
