@@ -44,6 +44,7 @@ async def regkyc_endpoint(
             media_type="application/json"
         )
 
+#RUTAS ALTERNAS
 @router.post("/selkyc")
 async def selkyc_endpoint(
     request: Request, 

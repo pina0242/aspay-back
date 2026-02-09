@@ -106,6 +106,7 @@ async def root(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse('/auth/login')
 
 # Routers
+# Routers YEYE
 app.include_router(legacy_router) 
 app.include_router(auth_router)    
 app.include_router(config_router)
