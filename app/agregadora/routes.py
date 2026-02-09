@@ -9,7 +9,7 @@ from app.agregadora.services import AgrService
 from typing import Dict, Any
 import json
 
-
+#diana Paso por aqui
 router = APIRouter()
 
 def get_ctaagre_service(db: Session = Depends(get_db)):
