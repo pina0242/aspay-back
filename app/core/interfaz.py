@@ -9,6 +9,8 @@ from app.core.models import DBLOGENTRY
 from app.core.config import settings
 from app.core.state import app_state
 
+
+
 # ===========================================================
 # 1) encripta_peticion: usar http_local pasado desde el hilo
 # ===========================================================
@@ -29,9 +31,10 @@ def encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, oper: str, p
 # 2) login_al_banco: puede crear http_local propio (no crítico)
 # ===========================================================
 def login_al_banco(db, euser, eIp_Origen, etimestar, http_local=None) -> str:
+    llamar = {"email":settings.BANK_EMAIL,
+              "password":settings.BANK_PASS}
     try:
-        login_body = {"email": "lcastaneda@example.net", "password": "user"}
-        rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'asplogin', login_body, "")
+        rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'asplogin',llamar, "")
         tokenDatlog = json.loads(resp)
         token = tokenDatlog["access_token"]
         return token
@@ -140,7 +143,6 @@ def callapi_alive(db, http_local, oper: str, payload_encrypted: str, headertoken
     headers['Authorization'] = headertoken
     try:
         r = crea_ses(http_local).post(url, data=payload_encrypted, headers=headers, timeout=timeout)
-        print(f"Cuerpo de la respuesta: {r.text}")
         log_terceros(db, oper, payload_encrypted, r.text, r.status_code, euser, eIp_Origen, etimestar, entidad)
         return r.status_code, r.text
     except requests.RequestException as e:
@@ -164,17 +166,19 @@ def crea_ses(http_local) -> requests.Session:
 
 def log_terceros(db, servicio, datosin, datosout, rc, user, ip, stime, entidad):
     try:
-        log_level_name = logging.getLevelName(logging.getLogger().getEffectiveLevel())
         timestar = obtener_fecha_actual()
         timeend = obtener_fecha_actual()
         log_entry = DBLOGENTRY(
             entidad=entidad,
-            timestar=timestar, timeend=timeend, log_level=log_level_name, funcion='',
+            timestar=timestar, timeend=timeend, log_level='', funcion='',
             respcod=rc, nombre=user, Ip_Origen=ip, Servicio=servicio, Metodo='POST',
             DatosIn=str(datosin), DatosOut=str(datosout)
         )
+        
         db.add(log_entry)
+        db.commit()
         return True
     except Exception as e:
+        db.rollback()
         print("log_terceros error:", e)
         return False

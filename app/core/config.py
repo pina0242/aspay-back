@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     PASSCYPH: str  
     SECRET_KEY: str
+    BANK_EMAIL: str
+    BANK_PASS: str
     DEBUG: bool = True
     
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60

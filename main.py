@@ -21,6 +21,7 @@ from app.roles.routes import router as roles_router
 from app.entidad.routes import router as entidad_router
 from app.control.routes import router as control_router
 
+from app.operaciones.traspaso.routes import router as operaciones_router_trasp
 from app.operaciones.layout.routes import router as operaciones_router_layout
 from app.operaciones.files.routes import router as operaciones_router_files
 from app.operaciones.pendientes.routes import router as operaciones_router_pendientes
@@ -114,6 +115,7 @@ app.include_router(control_router)
 app.include_router(users_router)
 app.include_router(roles_router)
 app.include_router(entidad_router)
+app.include_router(operaciones_router_trasp)
 app.include_router(operaciones_router_layout)
 app.include_router(operaciones_router_files)
 app.include_router(operaciones_router_pendientes)

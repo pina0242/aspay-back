@@ -323,8 +323,7 @@ class EntService:
                 rc = 400                            
         return result , rc
     
-    def selent(entidad,session):   
-        print('entro en selent')                        
+    def selent(entidad,session):                         
         selentidad = session.query(DBENTIDAD).filter(
             DBENTIDAD.entidad==entidad,
             DBENTIDAD.status == 'A' 
