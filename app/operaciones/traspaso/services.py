@@ -47,9 +47,11 @@ class TraspService:
             else:                                                           
                 entidad =  dataJSON["entidad"]
                 cta_ori  =  dataJSON["cta_ori"]
+                #cta_ori , estado = encrypt_message(password, cta_ori1)
                 alias_ori  =  dataJSON["alias_ori"]
                 tipo_ori  =  dataJSON["tipo_ori"]
                 cta_des  =  dataJSON["cta_des"]
+                #cta_des , estado = encrypt_message(password, cta_des1)
                 alias_des  =  dataJSON["alias_des"]
                 tipo_des  =  dataJSON["tipo_des"]
                 importe  =  dataJSON["importe"]
@@ -125,7 +127,7 @@ class TraspService:
                      result.append({'response': 'No se pudo autenticar contra el banco.'})
                      return result, 400
                  rc1 = registra_movto(db, euser, eIp_Origen, etimestar, headertokenbnc,
-                                      tkncli=cta_ori, alias=alias_ori, tipo=tipo_ori, signo='D',
+                                      datosin=cta_ori, alias=alias_ori, tipo=tipo_ori, signo='D',
                                       fecha_movto=fecha_movto, concepto=concepto,
                                       importe=importe, http_local=None)
                  rcc = rc1[0]
@@ -133,7 +135,7 @@ class TraspService:
                      result.append({"err": f"Cargo falló (rc={rc1[1]})"})
                      return result, 400
                  rc2 = registra_movto(db, euser, eIp_Origen, etimestar, headertokenbnc,
-                                      tkncli=cta_des, alias=alias_des, tipo=tipo_des, signo='H',
+                                      datosin=cta_des, alias=alias_des, tipo=tipo_des, signo='H',
                                       fecha_movto=fecha_movto, concepto=concepto,
                                       importe=importe, http_local=None)
                  rca = rc2[0]
@@ -187,7 +189,7 @@ class TraspService:
                                                 
             ctas_entries = db.query(DBCTAPERS).order_by(DBCTAPERS.id.desc()).where(DBCTAPERS.entidad == entidad,
                                                                                    DBCTAPERS.estatus=='A',
-                                                                                   DBCTAPERS.indoper.in_(['X', 'S'])).all() 
+                                                                                   DBCTAPERS.indoper.in_(['CO', 'CS'])).all() 
 
             if ctas_entries:
                 for entry in ctas_entries:
