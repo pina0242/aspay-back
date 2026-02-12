@@ -63,7 +63,7 @@ class CtaService:
                 'entban': ('long', 4),
                 'tipo': ('long', 3),
                 'alias': ('long', 10),
-                'indoper': ('long', 1),
+                'indoper': ('long', 2),
                 'categoria':('long',20)
             } 
             for key, (tipo, limite) in validations.items():
@@ -202,11 +202,11 @@ class CtaService:
                     return result, rc
         #No debe haber más de una cuenta operativa
         if estado:
-            if indoper == 'S':
+            if indoper == 'CO':
                 valindoper = db.query(DBCTAPERS).where(
                                     DBCTAPERS.tknper == tknper,
                                     #DBCTAPERS.alias == alias,
-                                    DBCTAPERS.indoper == 'S',
+                                    DBCTAPERS.indoper == 'CO',
                                     DBCTAPERS.estatus == 'A'
                                     ).first()
             
@@ -406,7 +406,7 @@ class CtaService:
                 'entban': ('long', 4),
                 'tipo': ('long', 3),
                 'alias': ('long', 10),
-                'indoper': ('long', 1),
+                'indoper': ('long', 2),
                 'categoria':('long',20)
             } 
             for key, (tipo, limite) in validations.items():
@@ -537,11 +537,11 @@ class CtaService:
                     return result, rc
             
         if estado:
-            if indoper == 'S':
+            if indoper == 'CO':
                 valindoper = db.query(DBCTAPERS).where(
                                     DBCTAPERS.tknper == tknper,
                                     #DBCTAPERS.alias == alias,
-                                    DBCTAPERS.indoper == 'S',
+                                    DBCTAPERS.indoper == 'CO',
                                     DBCTAPERS.estatus == 'A',
                                     DBCTAPERS.id != id  # Excluir el registro actual
                                     ).first()

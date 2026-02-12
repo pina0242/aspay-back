@@ -205,7 +205,7 @@ class DBCTAPERS(Base):
     tipo                = Column(String(3),   nullable=False)
     alias               = Column(String(10),  nullable=False)
     datos               = Column(Text) 
-    indoper             = Column(String(1),  nullable=False)
+    indoper             = Column(String(2),  nullable=False)
     estatus             = Column(String(1),  nullable=False)
     enmascar            = Column(String(50), nullable=False)
     categoria           = Column(String(20), nullable=False) 
