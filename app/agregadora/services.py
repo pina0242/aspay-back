@@ -190,33 +190,34 @@ class AgrService:
                      
 
                     ctas_saldos =  db.query(DBSALDOS).where( DBSALDOS.tkncli==entryAS.tknper,).first()
-                    saldoAS = ctas_saldos.saldo
+                    if ctas_saldos:
+                        saldoAS = ctas_saldos.saldo
 
 
-                    categoria = entryAS.categoria
-                    importe = saldoAS
-                    resumen[categoria] += importe
+                        categoria = entryAS.categoria
+                        importe = saldoAS
+                        resumen[categoria] += importe
 
-                    result.append({
-                        'id': entryAS.id,
-                        'entidad':entryAS.entidad,
-                        'tknper': entryAS.tknper,
-                        'pais': entryAS.pais,
-                        'moneda': entryAS.moneda,
-                        'tipo_cambio': tipo_cambio,
-                        'entban': entryAS.entban,
-                        'tipo': entryAS.tipo,
-                        'alias': entryAS.alias,
-                        'datos': datos_decrypted, # Devolver datos desencriptados
-                        'indoper': entryAS.indoper,
-                        'estatus': entryAS.estatus,
-                        'categoria':entryAS.categoria,
-                        'fecha_alta': entryAS.fecha_alta.strftime("%Y-%m-%d"),
-                        'usuario_alta': entryAS.usuario_alta,
-                        'saldo': saldoAS,
-                        'resumen': resumen
+                        result.append({
+                            'id': entryAS.id,
+                            'entidad':entryAS.entidad,
+                            'tknper': entryAS.tknper,
+                            'pais': entryAS.pais,
+                            'moneda': entryAS.moneda,
+                            'tipo_cambio': tipo_cambio,
+                            'entban': entryAS.entban,
+                            'tipo': entryAS.tipo,
+                            'alias': entryAS.alias,
+                            'datos': datos_decrypted, # Devolver datos desencriptados
+                            'indoper': entryAS.indoper,
+                            'estatus': entryAS.estatus,
+                            'categoria':entryAS.categoria,
+                            'fecha_alta': entryAS.fecha_alta.strftime("%Y-%m-%d"),
+                            'usuario_alta': entryAS.usuario_alta,
+                            'saldo': saldoAS,
+                            'resumen': resumen
 
-                        })
+                            })
 
 
 
@@ -253,7 +254,7 @@ class AgrService:
                     eIp_Origen,
                     etimestar,
                     headertoken,
-                    tkncli=tknper,
+                    datosin=tknper,
                     alias=alias
                 )
 
@@ -352,7 +353,7 @@ class AgrService:
                             eIp_Origen,
                             etimestar,
                             headertoken,
-                            tkncli=tknper,
+                            datosin=tknper,
                             alias=alias
                         )
 

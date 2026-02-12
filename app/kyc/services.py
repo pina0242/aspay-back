@@ -722,7 +722,7 @@ class KycService:
                         eIp_Origen,
                         etimestar,
                         headertoken,
-                        tkncli=tkncli,
+                        datosin=tkncli,
                         alias=alias
                     )
                 # Validar que resp y resp1 sean listas de dicts
@@ -852,7 +852,7 @@ class KycService:
                         eIp_Origen,
                         etimestar,
                         headertoken,
-                        tkncli=tkncli,
+                        datosin=tkncli,
                         alias=alias
                     )
                 # Validar que resp y resp1 sean listas de dicts
