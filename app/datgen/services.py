@@ -325,7 +325,7 @@ class DatgenService:
                     tipo  = '001'
                     alias ='CTA INTRNA'
                     datos = datos_cta_encrypted
-                    indoper = 'CS'
+                    indoper = 'NO'
                     enmascar = enmascarv
                     categoria = 'NINGUNA'
                     nombEnt = nombre + ' ' + ap_paterno + ' ' + ap_materno 
