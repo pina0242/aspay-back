@@ -46,10 +46,10 @@ def login_al_banco(db, euser, eIp_Origen, etimestar, http_local=None) -> str:
 # ===========================================================
 def consulta_saldo(db, euser, eIp_Origen, etimestar, headertoken: str, item, http_local=None):
     payload = {
-        "tkncli": item.tkncliori,
+        "datosin": item.datosin,
         "alias":  item.aliasori
     }
-    rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'selsaldos', payload, headertoken)
+    rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'selsaldos2', payload, headertoken)
     saldo = None
     if rc == 201:
         decriptMsg, estado = decrypt_message(settings.PASSCYPH, resp)
@@ -61,10 +61,10 @@ def consulta_saldo(db, euser, eIp_Origen, etimestar, headertoken: str, item, htt
     ok = (rc in (200, 201)) and (saldo is not None)
     return ok, (saldo or 0.0), {"rc": rc, "resp": resp}
 
-def registra_movto(db, euser, eIp_Origen, etimestar, headertoken: str, *, tkncli: str, alias: str, tipo: str,
+def registra_movto(db, euser, eIp_Origen, etimestar, headertoken: str, *, datosin: str, alias: str, tipo: str,
                    concepto: str, importe: float, signo: str, fecha_movto: str = "", http_local=None):
     payload = {
-        "tkncli": tkncli,
+        "datosin": datosin,
         "alias":  alias,
         "tipo":   tipo,
         "signo":  signo,
@@ -72,9 +72,10 @@ def registra_movto(db, euser, eIp_Origen, etimestar, headertoken: str, *, tkncli
         "concepto": concepto,
         "importe": float(importe)
     }
-    return encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'regmovto', payload, headertoken)
+    print('pay: ', payload)
+    return encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'regmovto2', payload, headertoken)
 
-def consulta_sdomov(db, euser, eIp_Origen, etimestar, headertoken: str, tkncli: str, alias: str, http_local=None):
+def consulta_sdomov(db, euser, eIp_Origen, etimestar, headertoken: str, datosin: str, alias: str, http_local=None):
     """
     Recupera saldos y movimientos de un cliente.
     Siempre retorna dict con claves: 'rc', 'resp', 'rc1', 'resp1'
@@ -83,10 +84,10 @@ def consulta_sdomov(db, euser, eIp_Origen, etimestar, headertoken: str, tkncli: 
     rc = 0
 
 
-    payload = {"tkncli": tkncli, "alias": alias}
+    payload = {"datosin": datosin, "alias": alias}
 
 
-    rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'selsaldos', payload, headertoken)
+    rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'selsaldos2', payload, headertoken)
     
     if rc == 201:
         decriptMsg_raw, estado = decrypt_message(settings.PASSCYPH, resp)
@@ -101,21 +102,21 @@ def consulta_sdomov(db, euser, eIp_Origen, etimestar, headertoken: str, tkncli: 
         decriptMsg = []
 
     return {"rc": rc, "resp": decriptMsg}
-def consulta_movagre(db, euser, eIp_Origen, etimestar, headertoken: str, tkncli: str, alias: str, http_local=None):
+def consulta_movagre(db, euser, eIp_Origen, etimestar, headertoken: str, datosin: str, alias: str, http_local=None):
 
     decriptMsg = []
     rc = 0
 
 
     payload = {
-        "tkncli": tkncli,
+        "datosin": datosin,
         "alias":  alias,
         "fecha_ini":  '0001-01-01',
         "fecha_fin": '9999-12-31',
           }
 
 
-    rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'selmovtos', payload, headertoken)
+    rc, resp = encripta_peticion(db, http_local, euser, eIp_Origen, etimestar, 'selmovtos2', payload, headertoken)
     if rc == 201:
         decriptMsg_raw, estado = decrypt_message(settings.PASSCYPH, resp)
         if estado:
@@ -143,6 +144,7 @@ def callapi_alive(db, http_local, oper: str, payload_encrypted: str, headertoken
     headers['Authorization'] = headertoken
     try:
         r = crea_ses(http_local).post(url, data=payload_encrypted, headers=headers, timeout=timeout)
+        print(f"Cuerpo de la respuesta: {r.text}")
         log_terceros(db, oper, payload_encrypted, r.text, r.status_code, euser, eIp_Origen, etimestar, entidad)
         return r.status_code, r.text
     except requests.RequestException as e:
