@@ -3,6 +3,8 @@ python -m venv aspay
 .\aspay\Scripts\activate
 uvicorn main:app --reload --port 9000
 
+probar seguridad
+
 """
 from fastapi import FastAPI , Request , HTTPException , Depends
 from app.core.database import Base, engine,  get_db
