@@ -971,6 +971,30 @@ class DBCALIF(Base):
         self.fecha_mod            = fecha_mod
         self.usuario_mod          = usuario_mod     
 
+class DB_BATCH_CONFIG(Base):
+    __tablename__ = 'DB_BATCH_CONFIG'
+    
+    id                  = Column(Integer, primary_key=True, index=True)
+    entidad             = Column(String(8), nullable=False)
+    nombre_proceso      = Column(String(100), nullable=False)  # Ej: "Cierre de Día"
+    task_path           = Column(String(200), nullable=False)       # Ruta de la función: "app.tasks.payroll.run"
+    cron_expression     = Column(String(100), nullable=False)  # Ej: "0 2 * * *" (Todos los días a las 2 AM)
+    is_active           = Column(Boolean, default=True)
+    ultima_ejecucion    = Column(DateTime, nullable=True)
+    ultimo_resultado    = Column(Text, nullable=True)        # Guardar log o mensaje de error
+    fecha_alta          = Column(DateTime, default=datetime.now)
+    def __init__(self, entidad, nombre_proceso, task_path, cron_expression, is_active, ultima_ejecucion, ultimo_resultado, fecha_alta):                 
+        self.entidad              = entidad        
+        self.nombre_proceso       = nombre_proceso     
+        self.task_path            = task_path 
+        self.cron_expression      = cron_expression
+        self.is_active            = is_active
+        self.ultima_ejecucion     = ultima_ejecucion
+        self.ultimo_resultado     = ultimo_resultado
+        self.fecha_alta           = fecha_alta
+
+    
+
 class STATIC:
     @staticmethod
     def obtener_fecha_actual():
