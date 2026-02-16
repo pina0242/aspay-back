@@ -14,7 +14,6 @@ def proceso_ejemplo_notificacion():
     return "Reportes enviados con éxito"
 
 def proceso_limpieza_logs():
-    
     print(f"[{datetime.now()}] Ejecutando: Limpieza de logs temporales...")
     return "Limpieza completada"
 
