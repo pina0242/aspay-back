@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     MICROSOFT_CLIENT_SECRET: str
     MICROSOFT_TENANT_ID: str
     MICROSOFT_REDIRECT_URI: str = "http://localhost:9000/getAToken"
-    call_bank: str ="https://w25q9d1d8b.execute-api.us-east-2.amazonaws.com/Dev/"
+    call_bank: str 
     
     model_config = ConfigDict(
         env_file=env_path,
