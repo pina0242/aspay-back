@@ -2373,10 +2373,9 @@ def analyze_person(prompt, person_data):
             Diccionario con el análisis estructurado
         """
         # Inicializar analizador
-        api_key = "sk-ef50ae255af24d598944592535be1f77"  # Reemplazar con tu API key    
-        base_url = "https://api.deepseek.com/v1/chat/completions"
+        
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {settings.API_KEY}",
             "Content-Type": "application/json"
         }
        
@@ -2407,7 +2406,7 @@ def analyze_person(prompt, person_data):
        
         try:
             response = requests.post(
-                base_url,
+                settings.BASE_URL,
                 headers=headers,
                 json=payload,
                 timeout=45
