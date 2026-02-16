@@ -993,6 +993,23 @@ class DB_BATCH_CONFIG(Base):
         self.ultimo_resultado     = ultimo_resultado
         self.fecha_alta           = fecha_alta
 
+class DB_BATCH_HISTORY(Base):
+    __tablename__ = 'DB_BATCH_HISTORY'
+    
+    id                  = Column(Integer, primary_key=True, index=True)
+    entidad             = Column(String(8), nullable=False)
+    nombre_proceso      = Column(String(100), nullable=False)  # Ej: "Cierre de Día"
+    task_path           = Column(String(200), nullable=False)       # Ruta de la función: "app.tasks.payroll.run"
+    ultima_ejecucion    = Column(DateTime, nullable=True)
+    ultimo_resultado    = Column(Text, nullable=True)        # Guardar log o mensaje de error
+    fecha_alta          = Column(DateTime, default=datetime.now)
+    def __init__(self, entidad, nombre_proceso, task_path, ultima_ejecucion, ultimo_resultado, fecha_alta):                 
+        self.entidad              = entidad        
+        self.nombre_proceso       = nombre_proceso     
+        self.task_path            = task_path 
+        self.ultima_ejecucion     = ultima_ejecucion
+        self.ultimo_resultado     = ultimo_resultado
+        self.fecha_alta           = fecha_alta
     
 
 class STATIC:
