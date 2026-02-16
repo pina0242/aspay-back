@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     BANK_EMAIL: str
     BANK_PASS: str
+    API_KEY : str
+    BASE_URL : str
     DEBUG: bool = True
     
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
