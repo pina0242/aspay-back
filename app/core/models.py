@@ -439,6 +439,36 @@ class DBLOGENTRY(Base):
         self.Metodo = Metodo
         self.DatosIn = DatosIn
         self.DatosOut = DatosOut
+class DBLOGENTRY_HIST(Base):
+    __tablename__ = 'DBLOGENTRY_HIST'
+    
+    id = Column(Integer, primary_key=True)
+    entidad = Column(String(8))  
+    timestar = Column(DateTime, default=datetime.now)
+    timeend = Column(DateTime, default=datetime.now)
+    log_level = Column(String(10))
+    funcion = Column(String(20))
+    respcod = Column(String(10))
+    nombre = Column(String(40))
+    Ip_Origen = Column(String(20))
+    Servicio = Column(String(20), nullable=False)
+    Metodo = Column(String(20), nullable=False)
+    DatosIn = Column(Text) 
+    DatosOut = Column(Text)
+    
+    def __init__(self, entidad, timestar, timeend, log_level, funcion, respcod, nombre, Ip_Origen, Servicio, Metodo, DatosIn, DatosOut):
+        self.entidad = entidad
+        self.timestar = timestar
+        self.timeend = timeend
+        self.log_level = log_level
+        self.funcion = funcion
+        self.respcod = respcod
+        self.nombre = nombre
+        self.Ip_Origen = Ip_Origen
+        self.Servicio = Servicio
+        self.Metodo = Metodo
+        self.DatosIn = DatosIn
+        self.DatosOut = DatosOut        
 
 class DBLOGWAF(Base):
     __tablename__ = 'DBLOGWAF'
@@ -982,8 +1012,8 @@ class DB_BATCH_CONFIG(Base):
     is_active           = Column(Boolean, default=True)
     ultima_ejecucion    = Column(DateTime, nullable=True)
     ultimo_resultado    = Column(Text, nullable=True)        # Guardar log o mensaje de error
-    fecha_alta          = Column(DateTime, default=datetime.now)
-    def __init__(self, entidad, nombre_proceso, task_path, cron_expression, is_active, ultima_ejecucion, ultimo_resultado, fecha_alta):                 
+    fecha_alta          = Column(DateTime)
+    def __init__(self, entidad, nombre_proceso, task_path, cron_expression, is_active, ultima_ejecucion, ultimo_resultado):                 
         self.entidad              = entidad        
         self.nombre_proceso       = nombre_proceso     
         self.task_path            = task_path 
@@ -991,7 +1021,7 @@ class DB_BATCH_CONFIG(Base):
         self.is_active            = is_active
         self.ultima_ejecucion     = ultima_ejecucion
         self.ultimo_resultado     = ultimo_resultado
-        self.fecha_alta           = fecha_alta
+        self.fecha_alta           = STATIC.obtener_fecha_actual()
 
 class DB_BATCH_HISTORY(Base):
     __tablename__ = 'DB_BATCH_HISTORY'
@@ -1002,14 +1032,14 @@ class DB_BATCH_HISTORY(Base):
     task_path           = Column(String(200), nullable=False)       # Ruta de la función: "app.tasks.payroll.run"
     ultima_ejecucion    = Column(DateTime, nullable=True)
     ultimo_resultado    = Column(Text, nullable=True)        # Guardar log o mensaje de error
-    fecha_alta          = Column(DateTime, default=datetime.now)
-    def __init__(self, entidad, nombre_proceso, task_path, ultima_ejecucion, ultimo_resultado, fecha_alta):                 
+    fecha_alta          = Column(DateTime)
+    def __init__(self, entidad, nombre_proceso, task_path, ultima_ejecucion, ultimo_resultado):                 
         self.entidad              = entidad        
         self.nombre_proceso       = nombre_proceso     
         self.task_path            = task_path 
         self.ultima_ejecucion     = ultima_ejecucion
         self.ultimo_resultado     = ultimo_resultado
-        self.fecha_alta           = fecha_alta
+        self.fecha_alta           = STATIC.obtener_fecha_actual()
     
 
 class STATIC:

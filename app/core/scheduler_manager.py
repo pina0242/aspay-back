@@ -31,6 +31,7 @@ class SchedulerManager:
             trigger, 
             id=job_id, 
             name=name,
+            kwargs={"task_db_id": task_id},
             replace_existing=True
         )
         logger.info(f"Job programado: {name} con cron [{cron_str}]")
