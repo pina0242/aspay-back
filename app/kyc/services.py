@@ -88,70 +88,206 @@ class KycService:
                 print('result :', result)
                 return result , rc
             
-            sikyc = db.query(DBKYCPERS).order_by(DBKYCPERS.id.desc()).where(DBKYCPERS.num_id==num_id,DBKYCPERS.estatus=='A').first() 
-            if sikyc:
-                result.append({'response':'Ya existe calificacion, consulta o borra'}) 
-                estado = False
-                rc = 400
-                return result , rc    
+            # sikyc = db.query(DBKYCPERS).order_by(DBKYCPERS.id.desc()).where(DBKYCPERS.num_id==num_id,DBKYCPERS.estatus=='A').first() 
+            # if sikyc:
+            #     result.append({'response':'Ya existe calificacion, consulta o borra'}) 
+            #     estado = False
+            #     rc = 400
+            #     return result , rc    
         
-        if estado:                                 
-            dir  = db.query(DBDIRPERS).order_by(DBDIRPERS.id.desc()).where(DBDIRPERS.num_id==num_id,DBDIRPERS.tipo_dir=='F',DBDIRPERS.estatus=='A').first() 
-            if dir:
-                pais = dir.pais
-                per  = db.query(DBDGENPERS).order_by(DBDGENPERS.id.desc()).where(DBDGENPERS.num_id==num_id,DBDGENPERS.estatus=='A').first() 
-                if per:
-                    fecha_nac = per.fecha_nac_const
-                    act_econ = per.giro
-                    entidad  = per.entidad
-                    print('act_econ', act_econ)
-                else:    
-                    result.append({'response':'No existe la persona'}) 
+        if estado:          
+            per  = db.query(DBDGENPERS).order_by(DBDGENPERS.id.desc()).where(DBDGENPERS.num_id==num_id,DBDGENPERS.estatus=='A').first() 
+            if per:
+                tkn = per.tknper
+                fecha_nac = per.fecha_nac_const
+                entidad  = per.entidad
+                nombre   = per.nombre
+                ap_paterno = per.ap_paterno
+                ap_materno = per.ap_materno
+                nacionalidad = per.nacionalidad
+
+                if per.tipo_per == 'M':                        
+                    act_econ = per.giro                        
+                else:
+                    act_econ = per.ocupacion                 
+
+                    #print('act_econ', act_econ)            
+                dcomp = db.query(DBDCOMPERS).order_by(DBDCOMPERS.id.desc()).where(DBDCOMPERS.num_id==num_id,DBDCOMPERS.estatus=='A').first()           
+                if dcomp:
+                    alias_analisis = dcomp.alias_nom_comer 
+                    dir  = db.query(DBDIRPERS).order_by(DBDIRPERS.id.desc()).where(DBDIRPERS.num_id==num_id,DBDIRPERS.tipo_dir=='F',DBDIRPERS.estatus=='A').first() 
+                    if dir:
+                        pais = dir.pais             
+                        cta = db.query(DBCTAPERS).order_by(DBCTAPERS.id.desc()).where(DBCTAPERS.tknper==tkn,DBCTAPERS.indoper == 'CO',DBCTAPERS.estatus=='A').first() 
+                        if cta:
+                            tkncli = cta.datos
+                            alias = cta.alias
+                            datos_decrypted, decrypt_estado = decrypt_message(password, tkncli)
+                            cuenta = datos_decrypted                            
+                        else:
+                            result.append({'response':'No existe cuenta operativa de la persona'}) 
+                            estado = False
+                            rc = 400
+                            return result , rc    
+                    else:       
+                        result.append({'response':'No existe direccion Fiscal de la persona'}) 
+                        estado = False
+                        rc = 400
+                        return result , rc       
+                else:
+                    result.append({'response':'No existen datos complementarios de la persona'})                  
                     estado = False
                     rc = 400
-                    return result , rc       
+                    return result , rc    
+
             else:
-                result.append({'response':'No existe direccion Fiscal de la persona'}) 
+                result.append({'response':'No existe la persona'})                  
                 estado = False
                 rc = 400
                 return result , rc                                   
         
         if estado :
             try:  
-                calif = generar_skyc(num_id,pais,fecha_nac,act_econ,db)
-                #print('calif :', calif)      
-                edad = calif["persona"]["edad"]  
-                riesgo_geog = calif["evaluacion_riesgo"]["riesgo_geografico"]         
-                riesgo_edad = calif["evaluacion_riesgo"]["riesgo_edad"]   
-                riesgo_act_econ = calif["evaluacion_riesgo"]["riesgo_act_econ"]      
-                riesgo_total = calif["evaluacion_riesgo"]["riesgo_total"]            
-                puntuac_fico = calif["historial_crediticio"]["puntuacion_fico_simulada"]
-                calif_fico = calif["historial_crediticio"]["categoria_fico"]
-                tx_frecuentes = calif["patrones_detectados"]["transacciones_frecuentes"]
-                tx_mismo_impte = calif["patrones_detectados"]["repeticion_montos"]
-                tx_benef_sospech = calif["patrones_detectados"]["multiples_beneficiarios_sospechosos"]
-                tx_alto_valor = calif["patrones_detectados"]["transacciones_alto_valor"]
-                tx_paises_altrzgo = calif["patrones_detectados"]["paises_alto_riesgo_afectados"]
-                tx_con_estruct = calif["patrones_detectados"]["estructuracion_detectada"]
-                tx_sospechosas = calif["transacciones_sospechosas_marcadas"]
-                aprob_kyc = calif["aprobacion_kyc"]
-                razon_aprob = ", ".join(calif["razon_aprobacion_rechazo"]) if calif["razon_aprobacion_rechazo"] else None
+                #calif = generar_skyc(num_id,pais,fecha_nac,act_econ,db)                
+                calif1 = calif_opcion1(num_id,pais,act_econ,db)
+                print('calif1 :', calif1)      
+                riesgo_geog = calif1["evaluacion_riesgo"]["riesgo_geografico"][0]         
+                riesgo_act_econ = calif1["evaluacion_riesgo"]["riesgo_act_econ"][0]      
+                #riesgo_total = calif1["evaluacion_riesgo"]["riesgo_total"]        
+            except Exception as e:
+                print ('Error :', e)
+                estado = False
+                rc = 400  
+                result.append({'response':'Error calif1'})         
+
+        if estado:
+            try:  
+                if per.tipo_per == 'M':
+                    acteconp, actecons = busca_activ_econ(act_econ,db)    
+                else:
+                    actecons = act_econ
+                calif2 = calif_opcion23(nombre,ap_paterno,ap_materno,fecha_nac,nacionalidad,alias_analisis,actecons,pais)
+                #print('calif2 :', calif2)      
+                riesgo_pep = calif2["evaluacion"]["ind_pep"]   
+                riesgo_list_sanc = calif2["evaluacion"]["ind_listas_riesgo"]          
+                riesgo_med_adv = calif2["evaluacion"]["ind_medios_adversos"]
+                resumen_analisis = calif2["salida_busqueda"]    
+            except Exception as e:
+                print ('Error :', e)
+                estado = False
+                rc = 400  
+                result.append({'response':'Error calif23'}) 
+
+        if estado:
+            try:                   
+                #ACCESO MOVS
+                euser = app_state.user_id
+                eIp_Origen = '192.111.1.1'
+                etimestar = obtener_fecha_actual()
+                with self.session_scope_ctx() as s_login:
+                    headertoken = login_al_banco(s_login, euser, eIp_Origen, etimestar)
+                if not headertoken:
+                    logger.error("No se pudo autenticar contra el banco.")
+                    return {"resp": [], "rc": 0}
+                try:
+                    with self.session_scope_ctx() as s_c:
+                        datos = consulta_movagre(
+                        s_c,
+                            euser,
+                            eIp_Origen,
+                            etimestar,
+                            headertoken,
+                            datosin=cuenta,
+                            alias=alias
+                        )
+                    # Validar que resp y resp1 sean listas de dicts
+                    resulta = datos.get("resp", [])
+                    resulta = datos['resp']
+                    rcr = datos['rc']
+                                        
+                    if rcr == 201:
+                        try:
+                            movimientos_list = {
+                            "movimientos": resulta
+                    }
+                        except json.JSONDecodeError:
+                            try:
+                                cadena_intermedia = json.loads(f'"{resulta}"') 
+                                movimientos_list = json.loads(cadena_intermedia)
+                                
+                            except json.JSONDecodeError as e:
+                                # Si sigue fallando, es un error real del formato.
+                                logger.error(f"Error JSON al procesar movimientos (doble fallo): {e}")
+                                result = "El formato JSON de movimientos es inválido."
+                                return result, 500
+                        message = json.dumps(movimientos_list)
+                        print('movimientos_list: ',movimientos_list)
+                        app_state.jsonenv = message
+                        encripresult , estado = encrypt_message(password, message)
+                        result = encripresult
+                        rc = 201   
+                    else:
+                        result.append({'response': 'No existen movimientos de la cuenta.'})
+                        rc = 400
+                        estado = False
+                except Exception as e:
+                        rc = 400
+                        logger.error(f"Error en recmovagre: {e}")
+                        return {"resp": [],  "rc": 400}  
+            except Exception as e:
+                print ('Error :', e)
+                estado = False
+                rc = 400  
+                result.append({'response':'Error acceso Movs'})
+                        
+        if estado :
+            try:
+                calif4 = calif_opcion4(movimientos_list,db)
+                #print('calif4 :', calif4)
+                tx_sospechosas = calif4["transacciones_sospechosas_marcadas"] #Por el momento solo se marca por valor
+                tx_alto_valor = calif4["transacciones_sospechosas_marcadas"]     
+                if calif4["aprobacion_calif"] == True:          
+                    riesgo_movs = 'N'
+                else:
+                    riesgo_movs = 'S'
+                razon_riesgo_movs = calif4["razon_aprobacion_rechazo"]    
+            except Exception as e:
+                print ('Error :', e)
+                estado = False
+                rc = 400  
+                result.append({'response':'Error calif4'})
+
+        if estado :
+            try:
+                calif5 = calif_opcion5(movimientos_list)
+                #print('calif5 :', calif5)
+                score_crediticio = calif5["puntaje"]     
+                cuota_max_sugerida = calif5["cuota_maxima_sugerida"]          
+                razon_score_cred = calif5["motivo_principal"]          
+            except Exception as e:
+                print ('Error :', e)
+                estado = False
+                rc = 400  
+                result.append({'response':'Error calif5'})
+            
+        if estado:
+            try:        
                 estatus = 'A'  
                 fecha_mod   = datetime.min
                 usuario_mod = '' 
                 usuario_alta  =  user  
 
-                regkyc = DBKYCPERS(num_id,entidad, edad, riesgo_geog, riesgo_edad, riesgo_act_econ,riesgo_total, puntuac_fico, calif_fico, tx_frecuentes, 
-                                 tx_mismo_impte, tx_benef_sospech, tx_alto_valor, tx_paises_altrzgo, tx_con_estruct, 
-                                 tx_sospechosas, aprob_kyc,razon_aprob,estatus,usuario_alta,fecha_mod,usuario_mod)
+                regkyc = DBKYCPERS(num_id,entidad, riesgo_geog, riesgo_act_econ, riesgo_pep, riesgo_list_sanc,riesgo_med_adv, resumen_analisis,tx_alto_valor, tx_sospechosas, 
+                                    riesgo_movs, razon_riesgo_movs, score_crediticio, razon_score_cred, cuota_max_sugerida, estatus, usuario_alta, fecha_mod, usuario_mod)
                 db.add(regkyc) 
                 db.commit()
-
-                result.append({'response':'Exito'
+                resultado = [] 
+                resultado.append({'response':'Exito'
                                     })        
+                      
                 rc = 201 
                 #print('result :', result) 
-                message = json.dumps(result)
+                message = json.dumps(resultado)
                 app_state.jsonenv = message 
                 #print('message :', message) 
                 encripresult , estado = encrypt_message(password, message)
@@ -204,29 +340,26 @@ class KycService:
         if estado :
             try:  
                 kyc  = db.query(DBKYCPERS).order_by(DBKYCPERS.id.desc()).where(DBKYCPERS.num_id==num_id,DBKYCPERS.estatus=='A').first() 
-                if kyc:
-                    edad = kyc.edad
-                    if edad >= 0:
+                if kyc:                    
+                    if kyc.num_id != ' ':
                     #print ('ok')
                         fecha_alta_str = kyc.fecha_alta.isoformat() if isinstance(kyc.fecha_alta, (date, datetime)) else str(kyc.fecha_alta)
                         result.append({ 
                         'num_id':kyc.num_id,           
-                        'edad':kyc.edad,            
+                        'entidad':kyc.entidad,            
                         'riesgo_geog':kyc.riesgo_geog,      
-                        'riesgo_edad':kyc.riesgo_edad,      
                         'riesgo_act_econ':kyc.riesgo_act_econ,
-                        'riesgo_total':kyc.riesgo_total,     
-                        'puntuac_fico':kyc.puntuac_fico,     
-                        'calif_fico':kyc.calif_fico,       
-                        'tx_frecuentes':kyc.tx_frecuentes,    
-                        'tx_mismo_impte':kyc.tx_mismo_impte,   
-                        'tx_benef_sospech':kyc.tx_benef_sospech, 
-                        'tx_alto_valor':kyc.tx_alto_valor,    
-                        'tx_paises_altrzgo':kyc.tx_paises_altrzgo,
-                        'tx_con_estruct':kyc.tx_con_estruct,   
-                        'tx_sospechosas':kyc.tx_sospechosas,   
-                        'aprob_kyc':kyc.aprob_kyc,        
-                        'razon_aprob':kyc.razon_aprob,       
+                        'riesgo_pep':kyc.riesgo_pep,     
+                        'riesgo_list_sanc':kyc.riesgo_list_sanc,     
+                        'riesgo_med_adv':kyc.riesgo_med_adv,       
+                        'resumen_analisis':kyc.resumen_analisis,    
+                        'tx_alto_valor':kyc.tx_alto_valor,   
+                        'tx_sospechosas':kyc.tx_sospechosas, 
+                        'riesgo_movs':kyc.riesgo_movs,    
+                        'razon_riesgo_movs':kyc.razon_riesgo_movs,
+                        'score_crediticio':kyc.score_crediticio,   
+                        'razon_score_cred':kyc.razon_score_cred,   
+                        'cuota_max_sugerida':kyc.cuota_max_sugerida,        
                         'fecha_alta':fecha_alta_str,
                         'usuario_alta':kyc.usuario_alta                                                                                 
                             })

@@ -284,22 +284,19 @@ class DBKYCPERS(Base):
     id                          = Column(Integer, primary_key=True)          
     num_id                      = Column(String(10), nullable=False)
     entidad                     = Column(String(8), nullable=False)
-    edad                        = Column(Integer,    nullable=False)
-    riesgo_geog                 = Column(String(10),  nullable=False)
-    riesgo_edad                 = Column(String(10),  nullable=False)
-    riesgo_act_econ             = Column(String(10),  nullable=False)
-    riesgo_total                = Column(String(10),  nullable=False)
-    puntuac_fico                = Column(Integer,    nullable=False)  
-    calif_fico                  = Column(String(10),  nullable=False)
-    tx_frecuentes               = Column(Integer,    nullable=False)
-    tx_mismo_impte              = Column(Integer,    nullable=False)
-    tx_benef_sospech            = Column(Integer,    nullable=False)
+    riesgo_geog                 = Column(String(1),  nullable=False)
+    riesgo_act_econ             = Column(String(1),  nullable=False)
+    riesgo_pep                  = Column(String(1),  nullable=False) 
+    riesgo_list_sanc            = Column(String(1),  nullable=False)
+    riesgo_med_adv              = Column(String(1),  nullable=False)
+    resumen_analisis            = Column(String(250), nullable=False)
     tx_alto_valor               = Column(Integer,    nullable=False)
-    tx_paises_altrzgo           = Column(Integer,    nullable=False)
-    tx_con_estruct              = Column(Integer,    nullable=False)
     tx_sospechosas              = Column(Integer,    nullable=False)
-    aprob_kyc                   = Column(String(5),  nullable=False)
-    razon_aprob                 = Column(String(250), nullable=False)
+    riesgo_movs                 = Column(String(1), nullable=False)
+    razon_riesgo_movs           = Column(String(250), nullable=False)
+    score_crediticio            = Column(Integer,    nullable=False)
+    razon_score_cred            = Column(String(250), nullable=False)
+    cuota_max_sugerida          = Column(Float, nullable=False)
     estatus                     = Column(String(1),  nullable=False)
     fecha_alta                  = Column(DateTime())
     usuario_alta                = Column(String(10) ,nullable=False)
@@ -307,27 +304,23 @@ class DBKYCPERS(Base):
     usuario_mod                 = Column(String(10) ,nullable=False) 
 
 
-    def __init__(self,num_id,entidad, edad, riesgo_geog, riesgo_edad, riesgo_act_econ,riesgo_total, puntuac_fico, calif_fico, tx_frecuentes, 
-                 tx_mismo_impte, tx_benef_sospech, tx_alto_valor, tx_paises_altrzgo, tx_con_estruct, tx_sospechosas, 
-                 aprob_kyc, razon_aprob,estatus,usuario_alta,fecha_mod,usuario_mod):
+    def __init__(self,num_id,entidad, riesgo_geog, riesgo_act_econ, riesgo_pep, riesgo_list_sanc,riesgo_med_adv, resumen_analisis,tx_alto_valor, tx_sospechosas,  
+                 riesgo_movs, razon_riesgo_movs, score_crediticio, razon_score_cred, cuota_max_sugerida,estatus,usuario_alta,fecha_mod,usuario_mod):
         self.num_id               = num_id     
         self.entidad              = entidad        
-        self.edad                 = edad   
         self.riesgo_geog          = riesgo_geog 
-        self.riesgo_edad          = riesgo_edad
         self.riesgo_act_econ      = riesgo_act_econ
-        self.riesgo_total         = riesgo_total
-        self.puntuac_fico         = puntuac_fico
-        self.calif_fico           = calif_fico
-        self.tx_frecuentes        = tx_frecuentes
-        self.tx_mismo_impte       = tx_mismo_impte
-        self.tx_benef_sospech     = tx_benef_sospech
+        self.riesgo_pep           = riesgo_pep
+        self.riesgo_list_sanc     = riesgo_list_sanc
+        self.riesgo_med_adv       = riesgo_med_adv
+        self.resumen_analisis     = resumen_analisis
         self.tx_alto_valor        = tx_alto_valor
-        self.tx_paises_altrzgo    = tx_paises_altrzgo
-        self.tx_con_estruct       = tx_con_estruct
         self.tx_sospechosas       = tx_sospechosas
-        self.aprob_kyc            = aprob_kyc
-        self.razon_aprob          = razon_aprob  
+        self.riesgo_movs          = riesgo_movs  
+        self.razon_riesgo_movs    = razon_riesgo_movs  
+        self.score_crediticio     = score_crediticio
+        self.razon_score_cred     = razon_score_cred
+        self.cuota_max_sugerida   = cuota_max_sugerida  
         self.estatus              = estatus
         self.fecha_alta           = STATIC.obtener_fecha_actual()
         self.usuario_alta         = usuario_alta
