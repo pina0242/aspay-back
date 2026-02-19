@@ -1,10 +1,11 @@
 
 
-from app.core.models import DBTRNAUT ,User , DBUSETRAN , DBALERTS ,DBENTIDAD, DBTRNAUTUSR , DBSERVAUT ,DBCOSTTRAN
+from app.core.models import DBTRNAUT ,User , DBUSETRAN , DBALERTS ,DBENTIDAD, DBTRNAUTUSR , DBSERVAUT ,DBCOSTTRAN ,DB_BATCH_CONFIG
 from app.core.cypher import encrypt_message , decrypt_message
 from app.core.cai import valcampo , obtener_fecha_actual ,cargar_costos, calcula_costo_txs
 from app.core.config import settings
 from app.core.state import app_state
+from app.entidad.services import EntService
 from sqlalchemy import  func , distinct , and_
 
 from datetime import datetime , date
@@ -1258,3 +1259,558 @@ class ControlService:
                 estado = False
                 rc = 400
         return result, rc
+
+    def regsched(self,datos, user, db):
+            result = []
+            estado = True
+            message = datos
+            message = str(message).replace('"','')
+            print('message :', message)
+            if not settings.PASSCYPH or settings.PASSCYPH == "default-password":
+                logger.error("PASSCYPH no configurado en .env")
+                return None, 500
+            else:
+                password = settings.PASSCYPH
+                decriptMsg , estado = decrypt_message(password, message)
+                app_state.jsonrec = decriptMsg
+                print('decriptMsg :', decriptMsg)
+            if estado :
+                #entidad, iduser ,Servicio ,status ,emailauth,usuario_alt
+                dataJSON = json.loads(decriptMsg)
+                param_keys = ['entidad' , 'nombre_proceso', 'task_path', 'configs']
+                if not all (key in dataJSON for key in param_keys):
+                    estado = False
+                    result.append({'response':'Algun elemento de la transacción esta faltando'}) 
+                    message = json.dumps(result)
+                    app_state.jsonenv = message                      
+                    rc = 400 
+                else:                  
+                    entidad = dataJSON["entidad"]
+                    nombre_proceso = dataJSON["nombre_proceso"]    
+                    task_path = dataJSON["task_path"]    
+                    configs = dataJSON["configs"]         
+            else:
+                estado = False
+                result = 'informacion incorrecta'
+                message = json.dumps(result)
+                app_state.jsonenv = message  
+                rc = 400
+
+            if estado:
+                validations = {
+                'entidad': ('long',8),
+                'nombre_proceso': ('long', 100),
+                'task_path': ('long', 200)
+                }
+
+                for key, (tipo, limite) in validations.items():
+                        if not valcampo(tipo, dataJSON[key], limite):
+                            response_key = key
+                            result = [{'response': response_key}]
+                            rc = 400
+                            message = json.dumps(result)
+                            app_state.jsonenv = message
+                            return result, rc   
+            if estado:
+                entidad_usu = app_state.entidad
+                valenti = EntService.selent(entidad, db)
+                if valenti:
+                    #entidad_usu = '4000'
+                    if entidad_usu != '0001':
+                        if entidad_usu != entidad:
+                            estado = False   
+                            result.append({'response':'Solo puede operar su propia entidad'})    
+                            message = json.dumps(result)
+                            app_state.jsonenv = message                                 
+                            rc = 400   
+
+                else:
+                    if entidad_usu != '0001':
+                        estado = False   
+                        result.append({'response':'No existe entidad'})    
+                        message = json.dumps(result)
+                        app_state.jsonenv = message                                 
+                        rc = 400   
+
+
+            if estado :                
+                try:
+                    for item in configs:
+                        if not (
+                            (item['minuto'] == '*' or 0 <= int(item['minuto']) <= 59) and
+                            (item['hora'] == '*' or 0 <= int(item['hora']) <= 23)     and
+                            (item['diaMes'] == '*' or 1 <= int(item['diaMes']) <= 31) and
+                            (item['mes'] == '*' or 1 <= int(item['mes']) <= 12)       and
+                            (item['diaSemana'] == '*' or 0 <= int(item['diaSemana']) <= 7)   # 0 o 7 es Domingo
+                             ):
+                            raise ValueError("Rangos de cron no válidos")
+                        cron_str = f"{item['minuto']} {item['hora']} {item['diaMes']} {item['mes']} {item['diaSemana']}"
+                        
+                        sched= DB_BATCH_CONFIG(
+                            entidad=entidad,
+                            nombre_proceso=nombre_proceso,
+                            task_path=task_path,
+                            cron_expression=cron_str,
+                            is_active=True,
+                            ultima_ejecucion=None,
+                            ultimo_resultado=None
+                        )
+                        db.add(sched)
+                    db.commit()
+                except Exception as e:
+                        db.rollback()
+                        result.append({'response': f'Error al registrar: {str(e)}'})
+                        rc = 400
+                        return result , rc 
+                result.append({'response':'Exito'})        
+                rc = 201 
+                message = json.dumps(result)
+                app_state.jsonenv = message
+                encripresult , estado = encrypt_message(password, message)
+                result = encripresult
+                
+            return result , rc 
+
+    def listsched(self,datos, user, db):
+            result = []
+            estado = True
+            message = datos
+            message = str(message).replace('"','')
+            print('message :', message)
+            if not settings.PASSCYPH or settings.PASSCYPH == "default-password":
+                logger.error("PASSCYPH no configurado en .env")
+                return None, 500
+            else:
+                password = settings.PASSCYPH
+                decriptMsg , estado = decrypt_message(password, message)
+                app_state.jsonrec = decriptMsg
+                print('decriptMsg :', decriptMsg)
+            if estado :
+                #entidad, iduser ,Servicio ,status ,emailauth,usuario_alt
+                dataJSON = json.loads(decriptMsg)
+                param_keys = ['entidad' , 'task_path']
+                if not all (key in dataJSON for key in param_keys):
+                    estado = False
+                    result.append({'response':'Algun elemento de la transacción esta faltando'}) 
+                    message = json.dumps(result)
+                    app_state.jsonenv = message                      
+                    rc = 400 
+                else:                  
+                    entidad = dataJSON["entidad"]
+                    task_path = dataJSON["task_path"]            
+            else:
+                estado = False
+                result = 'informacion incorrecta'
+                message = json.dumps(result)
+                app_state.jsonenv = message  
+                rc = 400
+
+            if estado:
+                validations = {
+                'entidad': ('long',8),
+                'task_path': ('long', 200)
+                }
+
+                for key, (tipo, limite) in validations.items():
+                        if not valcampo(tipo, dataJSON[key], limite):
+                            response_key = key
+                            result = [{'response': response_key}]
+                            rc = 400
+                            message = json.dumps(result)
+                            app_state.jsonenv = message
+                            return result, rc   
+            if estado:
+                entidad_usu = app_state.entidad
+                valenti = EntService.selent(entidad, db)
+                if valenti:
+                    #entidad_usu = '4000'
+                    if entidad_usu != '0001':
+                        if entidad_usu != entidad:
+                            estado = False   
+                            result.append({'response':'Solo puede operar su propia entidad'})    
+                            message = json.dumps(result)
+                            app_state.jsonenv = message                                 
+                            rc = 400   
+
+                else:
+                    if entidad_usu != '0001':
+                        estado = False   
+                        result.append({'response':'No existe entidad'})    
+                        message = json.dumps(result)
+                        app_state.jsonenv = message                                 
+                        rc = 400   
+
+
+            if estado :                
+                registros = db.query(DB_BATCH_CONFIG).filter(
+                            DB_BATCH_CONFIG.entidad == entidad,
+                            DB_BATCH_CONFIG.task_path == task_path,
+                            DB_BATCH_CONFIG.is_active == True
+                            ).all()
+                proceso_agrupado = {}
+                for r in registros:
+                    partes = r.cron_expression.split(' ')
+                    config_obj = {
+                        "id": r.id, 
+                        "minuto": partes[0],
+                        "hora": partes[1],
+                        "diaMes": partes[2],
+                        "mes": partes[3],
+                        "diaSemana": partes[4]
+                    }
+
+                    if r.nombre_proceso not in proceso_agrupado:
+                        proceso_agrupado[r.nombre_proceso] = {
+                            "entidad": r.entidad,
+                            "nombre_proceso": r.nombre_proceso,
+                            "task_path": r.task_path,
+                            "configs": []
+                        }
+                    
+                    proceso_agrupado[r.nombre_proceso]["configs"].append(config_obj)
+                lista_final = list(proceso_agrupado.values())
+                message = json.dumps(lista_final)
+                rc = 201 
+                app_state.jsonenv = message
+                encripresult , estado = encrypt_message(password, message)
+                result = encripresult
+                
+            return result , rc 
+
+    def updsched(self,datos, user, db):
+            result = []
+            estado = True
+            message = datos
+            message = str(message).replace('"','')
+            print('message :', message)
+            if not settings.PASSCYPH or settings.PASSCYPH == "default-password":
+                logger.error("PASSCYPH no configurado en .env")
+                return None, 500
+            else:
+                password = settings.PASSCYPH
+                decriptMsg , estado = decrypt_message(password, message)
+                app_state.jsonrec = decriptMsg
+                print('decriptMsg :', decriptMsg)
+            if estado :
+                #entidad, iduser ,Servicio ,status ,emailauth,usuario_alt
+                dataJSON = json.loads(decriptMsg)
+                param_keys = ['entidad', 'nombre_proceso', 'task_path', 'configs']
+                if not all (key in dataJSON for key in param_keys):
+                    estado = False
+                    result.append({'response':'Algun elemento de la transacción esta faltando'}) 
+                    message = json.dumps(result)
+                    app_state.jsonenv = message                      
+                    rc = 400 
+                else:                  
+                    entidad = dataJSON["entidad"]
+                    nombre_proceso = dataJSON["nombre_proceso"]
+                    task_path = dataJSON["task_path"]
+                    configs = dataJSON["configs"]         
+            else:
+                estado = False
+                result = 'informacion incorrecta'
+                message = json.dumps(result)
+                app_state.jsonenv = message  
+                rc = 400
+
+            if estado:
+                validations = {
+                'entidad': ('long',8),
+                'nombre_proceso': ('long',100),
+                'task_path': ('long', 200)
+                }
+
+                for key, (tipo, limite) in validations.items():
+                        if not valcampo(tipo, dataJSON[key], limite):
+                            response_key = key
+                            result = [{'response': response_key}]
+                            rc = 400
+                            message = json.dumps(result)
+                            app_state.jsonenv = message
+                            return result, rc   
+            if estado:
+                entidad_usu = app_state.entidad
+                valenti = EntService.selent(entidad, db)
+                if valenti:
+                    #entidad_usu = '4000'
+                    if entidad_usu != '0001':
+                        if entidad_usu != entidad:
+                            estado = False   
+                            result.append({'response':'Solo puede operar su propia entidad'})    
+                            message = json.dumps(result)
+                            app_state.jsonenv = message                                 
+                            rc = 400   
+
+                else:
+                    if entidad_usu != '0001':
+                        estado = False   
+                        result.append({'response':'No existe entidad'})    
+                        message = json.dumps(result)
+                        app_state.jsonenv = message                                 
+                        rc = 400   
+
+
+            if estado :                
+                try:
+                    registros_viejos = db.query(DB_BATCH_CONFIG).filter(
+                        DB_BATCH_CONFIG.entidad == entidad,
+                        DB_BATCH_CONFIG.nombre_proceso == nombre_proceso,
+                        DB_BATCH_CONFIG.task_path == task_path,
+                        DB_BATCH_CONFIG.is_active == True
+                    ).all()
+                    
+                    for reg in registros_viejos:
+                        
+                        reg.is_active = False
+                        reg.ultima_ejecucion = obtener_fecha_actual()
+                        reg.ultimo_resultado = "Se actualizo"                      
+                        db.add(reg)
+
+                    for item in configs:
+                        if not (
+                            (item['minuto'] == '*' or 0 <= int(item['minuto']) <= 59) and
+                            (item['hora'] == '*' or 0 <= int(item['hora']) <= 23) and
+                            (item['diaMes'] == '*' or 1 <= int(item['diaMes']) <= 31) and
+                            (item['mes'] == '*' or 1 <= int(item['mes']) <= 12) and
+                            (item['diaSemana'] == '*' or 0 <= int(item['diaSemana']) <= 7)
+                        ):
+                            raise ValueError(f"Rango cron inválido para {item}")
+
+                        cron_str = f"{item['minuto']} {item['hora']} {item['diaMes']} {item['mes']} {item['diaSemana']}"
+                        
+                        nuevo_sched = DB_BATCH_CONFIG(
+                            entidad=entidad,
+                            nombre_proceso=nombre_proceso,
+                            task_path=task_path,
+                            cron_expression=cron_str,
+                            is_active=True,
+                            ultima_ejecucion=None,
+                            ultimo_resultado=None
+                        )
+                        db.add(nuevo_sched)
+
+                    db.commit()
+                    result.append({'response': 'Exito - Configuración actualizada de proceso'})
+                    rc = 201
+                    message = json.dumps(result)
+                    app_state.jsonenv = message
+                    encripresult , estado = encrypt_message(password, message)
+                    result = encripresult
+
+                except Exception as e:
+                    db.rollback()
+                    result.append({'response': f'Error en actualización: {str(e)}'})
+                    rc = 400         
+                 
+            return result , rc 
+
+    def delsched(self,datos, user, db):
+                result = []
+                estado = True
+                message = datos
+                message = str(message).replace('"','')
+                print('message :', message)
+                if not settings.PASSCYPH or settings.PASSCYPH == "default-password":
+                    logger.error("PASSCYPH no configurado en .env")
+                    return None, 500
+                else:
+                    password = settings.PASSCYPH
+                    decriptMsg , estado = decrypt_message(password, message)
+                    app_state.jsonrec = decriptMsg
+                    print('decriptMsg :', decriptMsg)
+                if estado :
+                    #entidad, iduser ,Servicio ,status ,emailauth,usuario_alt
+                    dataJSON = json.loads(decriptMsg)
+                    param_keys = ['entidad', 'nombre_proceso', 'task_path']
+                    if not all (key in dataJSON for key in param_keys):
+                        estado = False
+                        result.append({'response':'Algun elemento de la transacción esta faltando'}) 
+                        message = json.dumps(result)
+                        app_state.jsonenv = message                      
+                        rc = 400 
+                    else:                  
+                        entidad = dataJSON["entidad"]
+                        nombre_proceso = dataJSON["nombre_proceso"]
+                        task_path = dataJSON["task_path"]      
+                else:
+                    estado = False
+                    result = 'informacion incorrecta'
+                    message = json.dumps(result)
+                    app_state.jsonenv = message  
+                    rc = 400
+
+                if estado:
+                    validations = {
+                    'entidad': ('long',8),
+                    'nombre_proceso': ('long',100),
+                    'task_path': ('long', 200)
+                    }
+
+                    for key, (tipo, limite) in validations.items():
+                            if not valcampo(tipo, dataJSON[key], limite):
+                                response_key = key
+                                result = [{'response': response_key}]
+                                rc = 400
+                                message = json.dumps(result)
+                                app_state.jsonenv = message
+                                return result, rc   
+                if estado:
+                    entidad_usu = app_state.entidad
+                    valenti = EntService.selent(entidad, db)
+                    if valenti:
+                        #entidad_usu = '4000'
+                        if entidad_usu != '0001':
+                            if entidad_usu != entidad:
+                                estado = False   
+                                result.append({'response':'Solo puede operar su propia entidad'})    
+                                message = json.dumps(result)
+                                app_state.jsonenv = message                                 
+                                rc = 400   
+
+                    else:
+                        if entidad_usu != '0001':
+                            estado = False   
+                            result.append({'response':'No existe entidad'})    
+                            message = json.dumps(result)
+                            app_state.jsonenv = message                                 
+                            rc = 400   
+
+
+                if estado :                
+                    try:
+                        registros_viejos = db.query(DB_BATCH_CONFIG).filter(
+                            DB_BATCH_CONFIG.entidad == entidad,
+                            DB_BATCH_CONFIG.nombre_proceso == nombre_proceso,
+                            DB_BATCH_CONFIG.task_path == task_path,
+                            DB_BATCH_CONFIG.is_active == True
+                        ).all()
+                        
+                        for reg in registros_viejos:
+                            campos_originales = {}
+                            for col in reg.__table__.columns:
+                                if col.name not in ['id','fecha_alta']:
+                                    campos_originales[col.name] = getattr(reg, col.name)
+                            campos_originales['is_active'] = False
+                            campos_originales['ultima_ejecucion'] = obtener_fecha_actual()
+                            campos_originales['ultimo_resultado'] = "Se elimina"
+
+                            print('campos_originales :', campos_originales)
+                            
+                            cred_historico = DB_BATCH_CONFIG(**campos_originales)
+                            db.add(cred_historico)
+                            db.delete(reg)
+
+                        db.commit()
+                        result.append({'response': 'Exito - Configuración eliminada del proceso'})
+                        rc = 201
+                        message = json.dumps(result)
+                        app_state.jsonenv = message
+                        encripresult , estado = encrypt_message(password, message)
+                        result = encripresult
+
+                    except Exception as e:
+                        db.rollback()
+                        result.append({'response': f'Error en actualización: {str(e)}'})
+                        rc = 400         
+                    
+                return result , rc 
+
+    def listschent(self,datos, user, db):
+            result = []
+            estado = True
+            message = datos
+            message = str(message).replace('"','')
+            print('message :', message)
+            if not settings.PASSCYPH or settings.PASSCYPH == "default-password":
+                logger.error("PASSCYPH no configurado en .env")
+                return None, 500
+            else:
+                password = settings.PASSCYPH
+                decriptMsg , estado = decrypt_message(password, message)
+                app_state.jsonrec = decriptMsg
+                print('decriptMsg :', decriptMsg)
+            if estado :
+                #entidad, iduser ,Servicio ,status ,emailauth,usuario_alt
+                dataJSON = json.loads(decriptMsg)
+                param_keys = ['entidad']
+                if not all (key in dataJSON for key in param_keys):
+                    estado = False
+                    result.append({'response':'Algun elemento de la transacción esta faltando'}) 
+                    message = json.dumps(result)
+                    app_state.jsonenv = message                      
+                    rc = 400 
+                else:                  
+                    entidad = dataJSON["entidad"]          
+            else:
+                estado = False
+                result = 'informacion incorrecta'
+                message = json.dumps(result)
+                app_state.jsonenv = message  
+                rc = 400
+
+            if estado:
+                validations = {
+                'entidad': ('long',8)
+                }
+
+                for key, (tipo, limite) in validations.items():
+                        if not valcampo(tipo, dataJSON[key], limite):
+                            response_key = key
+                            result = [{'response': response_key}]
+                            rc = 400
+                            message = json.dumps(result)
+                            app_state.jsonenv = message
+                            return result, rc   
+            if estado:
+                entidad_usu = app_state.entidad
+                valenti = EntService.selent(entidad, db)
+                if valenti:
+                    #entidad_usu = '4000'
+                    if entidad_usu != '0001':
+                        if entidad_usu != entidad:
+                            estado = False   
+                            result.append({'response':'Solo puede operar su propia entidad'})    
+                            message = json.dumps(result)
+                            app_state.jsonenv = message                                 
+                            rc = 400   
+
+                else:
+                    if entidad_usu != '0001':
+                        estado = False   
+                        result.append({'response':'No existe entidad'})    
+                        message = json.dumps(result)
+                        app_state.jsonenv = message                                 
+                        rc = 400   
+
+
+            if estado :                
+                registros = db.query(DB_BATCH_CONFIG).filter(
+                            DB_BATCH_CONFIG.entidad == entidad,
+                            DB_BATCH_CONFIG.is_active == True
+                            ).all()
+                if registros:
+                    procesos_map = {}
+                    for r in registros:
+                        if r.nombre_proceso not in procesos_map:
+                            procesos_map[r.nombre_proceso] = {
+                                "entidad": r.entidad,
+                                "nombre_proceso": r.nombre_proceso}
+                            result.append({ 
+                                    'entidad':r.entidad, 
+                                    'nombre_proceso':r.nombre_proceso,
+                                    'task_path':r.task_path,
+                                    'is_active':r.is_active
+                                        })
+                            
+                    rc = 201 
+                    message = json.dumps(result) 
+                    app_state.jsonenv = message
+                    encripresult , estado = encrypt_message(password, message)
+                    result = encripresult
+                else: 
+                    result.append({'response':'No existen datos a listar'})                  
+                    message = json.dumps(result)
+                    app_state.jsonenv = message   
+                    rc = 400         
+                
+            return result , rc 
