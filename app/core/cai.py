@@ -2045,10 +2045,10 @@ def calif_opcion1(doc_id, pais_resid, act_econ, session):
     if pais_resid not in paises_ue:
         if pais_resid in paises_alto_riesgo_ue:
             resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] = "Alto"
-            resultado_calif["razon_aprobacion_rechazo"].append(f"País de residencia '{pais_resid}' no es un país de la UE. Riesgo geográfico Alto.")
+            resultado_calif["razon_aprobacion_rechazo"].append(f"País de residencia '{pais_resid}' es un país alto Riesgo de la UE. Riesgo geográfico Alto.")
         else:
             resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] = "Medio"
-            resultado_calif["razon_aprobacion_rechazo"].append(f"País de residencia '{pais_resid}' es un país alto riesgo. Riesgo geográfico Medio.")
+            resultado_calif["razon_aprobacion_rechazo"].append(f"País de residencia '{pais_resid}' no es un país de la UE. Riesgo geográfico Medio.")
     else:
         resultado_calif["evaluacion_riesgo"]["riesgo_geografico"] = "Bajo"
 
@@ -2373,10 +2373,9 @@ def analyze_person(prompt, person_data):
             Diccionario con el análisis estructurado
         """
         # Inicializar analizador
-        api_key = "sk-ef50ae255af24d598944592535be1f77"  # Reemplazar con tu API key    
-        base_url = "https://api.deepseek.com/v1/chat/completions"
+        
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {settings.API_KEY}",
             "Content-Type": "application/json"
         }
        
@@ -2407,7 +2406,7 @@ def analyze_person(prompt, person_data):
        
         try:
             response = requests.post(
-                base_url,
+                settings.BASE_URL,
                 headers=headers,
                 json=payload,
                 timeout=45

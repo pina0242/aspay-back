@@ -381,7 +381,7 @@ class DatgenService:
             dataJSON = json.loads(decriptMsg)
         
         # Lista de campos posibles
-            param_keys = ['num_id','id_persona', 'nombre', 'ap_paterno', 'ap_materno']
+            param_keys = ['entidad','num_id','id_persona', 'nombre', 'ap_paterno', 'ap_materno']
         
         # Verificar que al menos un campo esté presente
             if not all (key in dataJSON for key in param_keys):
@@ -390,6 +390,7 @@ class DatgenService:
                 rc = 400
             else:
             # Extraer campos (pueden ser None si no están presentes)
+                entidad    = dataJSON.get("entidad")
                 num_id     = dataJSON.get("num_id")
                 id_persona = dataJSON.get("id_persona")
                 nombre     = dataJSON.get("nombre")
@@ -401,9 +402,10 @@ class DatgenService:
             rc = 400
     
     # Validaciones individuales de campos
-        print ('sale de informacion incorrecta' )
+        #print ('sale de informacion incorrecta' )
         if estado:
             validations = {
+                'entidad': ('long', 8),
                 'num_id': ('long', 10),
                 'id_persona': ('long', 9)
             } 
@@ -424,13 +426,21 @@ class DatgenService:
         #         result.append({'response': 'id_persona inválido'}) 
         #         estado = False
         #         rc = 400
-        print ('sale de validator' )
+        #print ('sale de validator' )
         if estado:
             try:  
             # Construir consulta dinámica basada en los campos proporcionados
-                query = db.query(DBDGENPERS).filter(DBDGENPERS.estatus == 'A')
-            
+            # Verifica entidad del usuario. si es '0001' extrae todo, 
+            # En caso contrario, se extraen los registros de la entidad del usuario
+                if app_state.entidad == '0001':
+                    query = db.query(DBDGENPERS).filter(DBDGENPERS.estatus == 'A')
+                else:
+                    query = db.query(DBDGENPERS).filter(DBDGENPERS.estatus == 'A',DBDGENPERS.entidad == app_state.entidad)
+                
             # Agregar filtros solo para los campos que tienen valor
+                if entidad != '':
+                    query = query.filter(DBDGENPERS.entidad == entidad)
+
                 if num_id != '':
                     query = query.filter(DBDGENPERS.num_id == num_id)
 
@@ -449,10 +459,10 @@ class DatgenService:
             
             # Ordenar y obtener resultados
                 personas = query.order_by(DBDGENPERS.id.desc()).all()
-                print ('sale de quieries')
+                #print ('sale de quieries')
                 if personas:
                     for per in personas:
-                        print ('si hay datos')
+                        #print ('si hay datos')
                         # Convertir los objetos de fecha y datetime a string
                         fecha_alta_str = per.fecha_alta.isoformat() if isinstance(per.fecha_alta, (date, datetime)) else str(per.fecha_alta)
                         fecha_nac_const_str = per.fecha_nac_const.isoformat() if isinstance(per.fecha_nac_const, (date, datetime)) else str(per.fecha_nac_const)
@@ -712,7 +722,7 @@ class DatgenService:
                 # 1. Crear copia histórica (estatus 'M')
                     campos_originales = {}
                     for col in per.__table__.columns:
-                        if col.name not in ['id','tknper','fecha_alta']:
+                        if col.name not in ['id','fecha_alta']:
                             campos_originales[col.name] = getattr(per, col.name)
                 
                     campos_originales['estatus'] = 'M'  # Status histórico
@@ -722,9 +732,8 @@ class DatgenService:
                 
                     dgpers_historico = DBDGENPERS(**campos_originales)
                     db.add(dgpers_historico)
-
                 # 2. ACTUALIZAR registro original (mantener status 'A')
-                    per.id_persona       = id_persona
+                    per.id_persona       = id_persona                    
                     per.tipo_id          = tipo_id
                     per.nombre           = nombre
                     per.tipo_cte         = tipo_cte
@@ -751,7 +760,7 @@ class DatgenService:
                         per.ind_pep      = ' '
                         per.estado_civil = ' '
                         per.num_reg_mercantil = num_reg_mercantil
-                    
+                        
                     db.add(per)     
                     db.commit() 
                     result.append({'response':'Exito'

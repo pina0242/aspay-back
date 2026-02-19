@@ -3,13 +3,12 @@ python -m venv aspay
 .\aspay\Scripts\activate
 uvicorn main:app --reload --port 9000
 
-probar seguridad
-
 """
 from fastapi import FastAPI , Request , HTTPException , Depends
 from app.core.database import Base, engine,  get_db
 from app.core.cai import valoath
 from app.config.routes import router as config_router
+from app.core.task_registry import ejecutar_prueba_test
 from app.users.routes import router as users_router
 from app.roles.routes import router as roles_router
 from app.entidad.routes import router as entidad_router
@@ -40,9 +39,17 @@ from app.middleware.advanced_logger import advanced_logger_middleware
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+
+from app.core.database import SessionLocal
+from app.core.scheduler_manager import scheduler_manager
+from app.core.batch_service import BatchService
+from contextlib import asynccontextmanager
+
 import json
 import time
 import logging
+
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,7 +57,32 @@ logger = logging.getLogger(__name__)
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="ASPAY")
+# Definimos el ciclo de vida
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- Lógica al ARRANCAR (Startup) ---
+    print("Iniciando servicios...")
+    scheduler_manager.start()
+    
+# Cargar tareas persistidas en la BD al scheduler
+    db = SessionLocal()
+    try:
+        service = BatchService(db)
+        service.cargar_todas_las_tareas_al_inicio()
+#        from app.core.task_registry import ejecutar_prueba_test
+#        ejecutar_prueba_test()
+    finally:
+        db.close()
+    
+    yield  # Aquí es donde la aplicación "vive" y atiende peticiones
+    
+    # --- Lógica al APAGAR (Shutdown) ---
+    print("Deteniendo servicios...")
+    scheduler_manager.shutdown()
+
+app = FastAPI(title="ASPAY", lifespan=lifespan)
+
+
 
 # Configura CORS para el frontend
 app.add_middleware(
