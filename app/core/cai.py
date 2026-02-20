@@ -12,7 +12,7 @@ from datetime import datetime , timedelta
 import json
 import re
 import requests
-
+import jwt 
 import xml.etree.ElementTree as ET
 
 from app.core.config import settings
@@ -386,10 +386,13 @@ def waf(Ip_Origen, token, session, num_records, max_time_diff_seconds, num_conec
 
 def log_response_info(request,start_time,ip_origen,rc):
         db = SessionLocal()
+
+
         try:
             #head = request.headers    
             #log_level = logging.getLogger().getEffectiveLevel()
             #log_level_name = logging.getLevelName(log_level)
+
             log_level_name = ''
             timestar = start_time
             #print('timestar :',timestar)
@@ -403,28 +406,54 @@ def log_response_info(request,start_time,ip_origen,rc):
             #print('Servicio :', Servicio)
             Metodo = request.method
             #print (' Metodo :', Metodo, app_state.jsonrec)
-            if Metodo == 'POST' or Metodo == 'GET':                    
-            #    DatosIn = g.jsonrec
-            #    if len(g.jsonenv) > 0:
-            #        DatosOut = g.jsonenv
-            #    else:
-            #        DatosOut = response.get_json() if response.is_json else response.get_data(as_text=True)
+            if Metodo == 'POST' or Metodo == 'GET':      
+
+                #    DatosIn = g.jsonrec
+                #    if len(g.jsonenv) > 0:
+                #        DatosOut = g.jsonenv
+                #    else:
+                #        DatosOut = response.get_json() if response.is_json else response.get_data(as_text=True)
                 current_jsonenv = app_state.jsonenv
                 current_jsonrec = app_state.jsonrec
                 DatosIn=str(current_jsonrec)
                 DatosOut=str(current_jsonenv) 
+
                 respcod = rc
             #    DatosIn = DatosIn[0] if isinstance(DatosIn, tuple) else DatosIn
             #    print('DatosIn:', DatosIn)
                 #print('Longitud de DatosIn:', len(DatosIn)) 
-            #    DatosOut = DatosOut[0] if isinstance(DatosOut, tuple) else DatosOut                    
-                
-            log_entry = DBLOGENTRY(entidad,timestar,timeend,log_level_name,funcion,respcod,nombre,Ip_Origen,Servicio,Metodo,DatosIn,DatosOut)
-            db.add(log_entry)  
-            db.commit()
+            #    DatosOut = DatosOut[0] if isinstance(DatosOut, tuple) else DatosOut             
+                if Servicio =='/':
+                    try:
 
-            print ('entre a registrar log')
-            #print ('request:',request )
+                        res_json = json.loads(DatosOut)
+                        resultado = res_json[0]['response']
+                        resulclean = resultado.replace("Bearer ", "")
+                        payload = jwt.decode(
+                            resulclean, 
+                            settings.SECRET_KEY, 
+                            algorithms=[settings.JWT_ALGORITHM]  
+                        )
+                        Servicio ='/LOGIN'
+    
+                        nombre = payload.get("clvcol")
+
+                    except jwt.InvalidTokenError:
+                        print("Token inválido LOG")
+
+
+                if Servicio == '/getAToken' or Servicio =='/auth/callback' or Servicio =='/login':                    
+                    pass
+                # ya no se guarda porque no trae informacion validacion microsoft 
+
+                else:
+
+                    log_entry = DBLOGENTRY(entidad,timestar,timeend,log_level_name,funcion,respcod,nombre,Ip_Origen,Servicio,Metodo,DatosIn,DatosOut)
+                    db.add(log_entry)  
+                    db.commit()
+
+                    print ('entre a registrar log')
+                    #print ('request:',request )
             
         except Exception as e:
             print ('e',e)
