@@ -1,7 +1,7 @@
 
 from app.core.models import DBDGENPERS, DBCTAPERS, DBTCORP
 from app.core.cypher import encrypt_message , decrypt_message
-from app.core.cai import valcampo, valtipdat, obtener_fecha_actual, busca_moneda_local, busca_tipo_cambio
+from app.core.cai import valcampo, valtipdat, obtener_fecha_actual, busca_moneda_local, busca_tipo_cambio, obten_desc_indoper
 from app.core.config import settings
 from app.core.state import app_state
 from app.core.auth import create_access_token
@@ -201,20 +201,20 @@ class CtaService:
                     rc = 400
                     return result, rc
         #No debe haber más de una cuenta operativa
-        if estado:
-            if indoper == 'CO':
-                valindoper = db.query(DBCTAPERS).where(
-                                    DBCTAPERS.tknper == tknper,
-                                    #DBCTAPERS.alias == alias,
-                                    DBCTAPERS.indoper == 'CO',
-                                    DBCTAPERS.estatus == 'A'
-                                    ).first()
+        # if estado:
+        #     if indoper == 'CO':
+        #         valindoper = db.query(DBCTAPERS).where(
+        #                             DBCTAPERS.tknper == tknper,
+        #                             #DBCTAPERS.alias == alias,
+        #                             DBCTAPERS.indoper == 'CO',
+        #                             DBCTAPERS.estatus == 'A'
+        #                             ).first()
             
-                if valindoper:
-                    result.append({'response': 'Ya existe otra cuenta operativa para este cliente.'})
-                    estado = False
-                    rc = 400
-                    return result, rc
+        #         if valindoper:
+        #             result.append({'response': 'Ya existe otra cuenta operativa para este cliente.'})
+        #             estado = False
+        #             rc = 400
+        #             return result, rc
                 
         if estado:
             if moneda != 'EUR':
@@ -325,9 +325,11 @@ class CtaService:
                     if entry.moneda != 'EUR':
                         print('voy a tipo cambio por: ', entry.moneda)
                         tipo_cambio = busca_tipo_cambio(entry.moneda,db)
-                     
+
+                    desc_indoper = obten_desc_indoper (entry.indoper,db)
                     fecha_alta_str = entry.fecha_alta.isoformat() if isinstance(entry.fecha_alta, (date, datetime)) else str(entry.fecha_alta)
                     fecha_mod_str = entry.fecha_mod.isoformat() if isinstance(entry.fecha_mod, (date, datetime)) else str(entry.fecha_mod)
+                    
                     result.append({
                         'id': entry.id,
                         'entidad':entry.entidad,
@@ -339,7 +341,7 @@ class CtaService:
                         'tipo': entry.tipo,
                         'alias': entry.alias,
                         'datos': datos_decrypted, # Devolver datos desencriptados
-                        'indoper': entry.indoper,
+                        'indoper': entry.indoper + ' - ' + desc_indoper,
                         #'estatus': entry.estatus,
                         #'enmascar':entry.enmascar,
                         'categoria':entry.categoria,
@@ -536,21 +538,21 @@ class CtaService:
                     rc = 400
                     return result, rc
             
-        if estado:
-            if indoper == 'CO':
-                valindoper = db.query(DBCTAPERS).where(
-                                    DBCTAPERS.tknper == tknper,
-                                    #DBCTAPERS.alias == alias,
-                                    DBCTAPERS.indoper == 'CO',
-                                    DBCTAPERS.estatus == 'A',
-                                    DBCTAPERS.id != id  # Excluir el registro actual
-                                    ).first()
+        # if estado:
+        #     if indoper == 'CO':
+        #         valindoper = db.query(DBCTAPERS).where(
+        #                             DBCTAPERS.tknper == tknper,
+        #                             #DBCTAPERS.alias == alias,
+        #                             DBCTAPERS.indoper == 'CO',
+        #                             DBCTAPERS.estatus == 'A',
+        #                             DBCTAPERS.id != id  # Excluir el registro actual
+        #                             ).first()
             
-                if valindoper:
-                    result.append({'response': 'Ya existe otra cuenta operativa para este cliente.'})
-                    estado = False
-                    rc = 400
-                    return result, rc
+        #         if valindoper:
+        #             result.append({'response': 'Ya existe otra cuenta operativa para este cliente.'})
+        #             estado = False
+        #             rc = 400
+        #             return result, rc
                 
         if estado:
             if moneda != 'EUR':
@@ -595,6 +597,7 @@ class CtaService:
                     ctas_ent.tipo = tipoc
                     ctas_ent.alias = alias
                     ctas_ent.datos = datos_ctas_encrypted # Actualizar con datos encriptados
+                    ctas_ent.indoper = indoper
                     ctas_ent.enmascar= enmascarv
                     ctas_ent.categoria= categoria
                     ctas_ent.fecha_mod = obtener_fecha_actual()

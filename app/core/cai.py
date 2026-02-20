@@ -1286,6 +1286,36 @@ def busca_clave_pais(pais,session):
     
     return clave_pais
 
+
+def obten_desc_indoper(indoper: str, session) -> str:
+    """
+    Recupera la descripción (`datos`) para un `indoper` desde la tabla DBTCORP.
+
+    Parámetros:
+    - indoper: valor de la clave a buscar en DBTCORP.clave cuando DBTCORP.llave == 'INDOPER'
+    - session: sesión de base de datos (SQLAlchemy)
+
+    Retorna:
+    - desc_indoper (str): el contenido de `datos` si se encuentra el registro, cadena vacía si no.
+    """
+    try:
+        registro = session.query(DBTCORP).order_by(DBTCORP.id.desc()).where(
+            DBTCORP.llave == 'INDOPER',
+            DBTCORP.clave == indoper,
+            DBTCORP.status == 'A'
+        ).first()
+
+        if registro and getattr(registro, 'datos', None) is not None:
+            desc_indoper = registro.datos
+        else:
+            desc_indoper = ''
+
+    except Exception as e:
+        logger.exception('Error consultando INDOPER en DBTCORP: %s', e)
+        desc_indoper = ''
+
+    return desc_indoper
+
 def cargar_df_relaciones(session):
     """Carga DataFrame UNA sola vez"""
     try:

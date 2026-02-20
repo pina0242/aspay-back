@@ -753,20 +753,24 @@ class DBSALDOS(Base):
     datos               = Column(Text) 
     tipo                = Column(String(3),   nullable=False)
     alias               = Column(String(10),  nullable=False)
-    saldo               = Column(Float,       nullable=False)    
+    sdo_liquid          = Column(Float,       nullable=False)
+    sdo_salvaguarda     = Column(Float,       nullable=False)
+    sdo_retenido        = Column(Float,       nullable=False)
     fecha_saldo         = Column(DateTime())
     fecha_alta          = Column(DateTime())
     usuario_alta        = Column(String(10) ,nullable=False)
     fecha_mod           = Column(DateTime())
     usuario_mod         = Column(String(10) ,nullable=False)
 
-    def __init__(self,entidad,tkncli,datos,tipo,alias,saldo,fecha_saldo,fecha_alta,usuario_alta,fecha_mod,usuario_mod):
+    def __init__(self,entidad,tkncli,datos,tipo,alias,sdo_liquid,sdo_salvaguarda,sdo_retenido,fecha_saldo,fecha_alta,usuario_alta,fecha_mod,usuario_mod):
         self.entidad            = entidad
         self.tkncli             = tkncli
         self.datos              = datos
         self.tipo               = tipo
         self.alias              = alias
-        self.saldo              = saldo
+        self.sdo_liquid         = sdo_liquid
+        self.sdo_salvaguarda    = sdo_salvaguarda
+        self.sdo_retenido       = sdo_retenido
         self.fecha_saldo        = fecha_saldo
         self.fecha_alta         = fecha_alta
         self.usuario_alta       = usuario_alta
